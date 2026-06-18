@@ -1,0 +1,6 @@
+{
+  "name": "Navigoo",
+  "description": "An interactive goal-navigation and milestone-driven timeline dashboard designed to help users successfully map and achieve their educational, learning, or professional goals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
