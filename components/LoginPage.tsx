@@ -24,7 +24,7 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ initialMode = 'login', onBackToHome, onLoginSuccess }: LoginPageProps) {
-  const { login } = useTimelineStore();
+  const { login, register } = useTimelineStore();
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   
   // Form states
@@ -68,26 +68,52 @@ export default function LoginPage({ initialMode = 'login', onBackToHome, onLogin
         setIsSubmitting(false);
         return;
       }
-    }
 
-    try {
-      // Simulate slow crypto hashing latency for user satisfaction
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const loginHandle = mode === 'signup' ? username.toLowerCase().trim() : email.split('@')[0];
-      const nameHandle = mode === 'signup' ? fullName : (email.split('@')[0] || "User");
-      
-      await login(loginHandle, email.toLowerCase().trim(), nameHandle);
-      
-      setSuccess(true);
-      setTimeout(() => {
-        onLoginSuccess();
-      }, 700);
+      // Backend name and password validation alignment
+      const nameParts = fullName.trim().split(/\s+/);
+      const fname = nameParts[0] ? nameParts[0].replace(/[^a-zA-Z]/g, "") : "";
+      const lname = nameParts.slice(1).join(" ").replace(/[^a-zA-Z]/g, "") || "User";
 
-    } catch (e: any) {
-      setErrorText("Could not authenticate. Verify credentials.");
-    } finally {
-      setIsSubmitting(false);
+      if (!fname || fname.length < 2 || fname.length > 15 || !/^[a-zA-Z]+$/.test(fname)) {
+        setErrorText("First name must be between 2 and 15 alphabetic characters.");
+        setIsSubmitting(false);
+        return;
+      }
+      if (!lname || lname.length < 2 || lname.length > 15 || !/^[a-zA-Z]+$/.test(lname)) {
+        setErrorText("Last name must be between 2 and 15 alphabetic characters.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (password.length < 8 || !/[0-9]/.test(password) || !/[a-zA-Z]/.test(password)) {
+        setErrorText("Password must be at least 8 characters and contain both letters and numbers.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      try {
+        await register(username.toLowerCase().trim(), email.toLowerCase().trim(), password, fname, lname);
+        setSuccess(true);
+        setTimeout(() => {
+          onLoginSuccess();
+        }, 700);
+      } catch (err: any) {
+        setErrorText(err.message || "Could not register. Verify inputs.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      try {
+        await login(email.toLowerCase().trim(), password);
+        setSuccess(true);
+        setTimeout(() => {
+          onLoginSuccess();
+        }, 700);
+      } catch (err: any) {
+        setErrorText(err.message || "Could not authenticate. Verify credentials.");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -202,7 +228,7 @@ export default function LoginPage({ initialMode = 'login', onBackToHome, onLogin
                 <input
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="Minimum 6 characters"
+                  placeholder="Min. 8 characters with letters & numbers"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-10 pr-10 py-2.5 text-xs text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/5 focus:border-zinc-900 transition-all font-medium"

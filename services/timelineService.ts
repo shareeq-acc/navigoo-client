@@ -28,25 +28,62 @@ export const authService = {
     return JSON.parse(userStr);
   },
 
-  async login(username: string, email: string, name?: string): Promise<SuccessResponse<UserProps>> {
-    await delay(300);
-    const user: UserProps = {
-      id: `usr-${Math.random().toString(36).substr(2, 5)}`,
-      username: username || "totok_mike",
-      name: name || "Totok Michael",
-      email: email || "tmichael20@gmail.com",
-      avatar: `https://picsum.photos/seed/${username}/100/100`
+  async login(email: string, password: string): Promise<SuccessResponse<UserProps>> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Login failed");
+    }
+
+    const { accessToken, user } = result.data;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem("timeline_app_token", accessToken);
+    }
+
+    const mappedUser: UserProps = {
+      id: user.id,
+      username: user.username,
+      name: `${user.fname} ${user.lname}`,
+      email: user.email,
+      avatar: user.avatar || `https://picsum.photos/seed/${user.username}/100/100`
     };
-    window.localStorage.setItem("timeline_app_user", JSON.stringify(user));
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem("timeline_app_user", JSON.stringify(mappedUser));
+    }
+
     return {
       success: true,
       message: "Successfully logged in",
-      data: user
+      data: mappedUser
     };
   },
 
-  async register(username: string, email: string): Promise<SuccessResponse<UserProps>> {
-    return this.login(username, email);
+  async register(username: string, email: string, password: string, fname: string, lname: string): Promise<SuccessResponse<UserProps>> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const response = await fetch(`${API_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, email, password, fname, lname }),
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Registration failed");
+    }
+
+    // Automatically log in the user after successful registration
+    return this.login(email, password);
   },
 
   async updateProfile(name: string, avatar?: string): Promise<SuccessResponse<UserProps>> {
@@ -60,7 +97,9 @@ export const authService = {
       name,
       avatar: avatar !== undefined ? avatar : currentUser.avatar
     };
-    window.localStorage.setItem("timeline_app_user", JSON.stringify(updatedUser));
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem("timeline_app_user", JSON.stringify(updatedUser));
+    }
     return {
       success: true,
       message: "Profile updated successfully",
@@ -69,8 +108,23 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
-    await delay(100);
-    window.localStorage.removeItem("timeline_app_user");
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    if (typeof window !== 'undefined') {
+      const token = window.localStorage.getItem("timeline_app_token");
+      try {
+        await fetch(`${API_URL}/api/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } catch (e) {
+        console.warn("Logout request failed", e);
+      }
+      window.localStorage.removeItem("timeline_app_user");
+      window.localStorage.removeItem("timeline_app_token");
+    }
   }
 };
 

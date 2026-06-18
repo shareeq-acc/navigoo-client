@@ -42,7 +42,8 @@ interface TimelineContextType {
   };
 
   // State actions
-  login: (username: string, email: string, name?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (username: string, email: string, password: string, fname: string, lname: string) => Promise<void>;
   logout: () => Promise<void>;
   setActiveTimelineId: (id: string | null) => void;
   createTimeline: (data: Omit<TimelineProps, 'id' | 'author' | 'isGenerated' | 'version' | 'createdAt' | 'updatedAt'>) => Promise<TimelineProps>;
@@ -312,8 +313,8 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const activeTimeline = timelines.find(t => t.id === activeTimelineId) || 
                        exploreTimelines.find(t => t.id === activeTimelineId) || null;
 
-  const handleLogin = async (username: string, email: string, name?: string) => {
-    const res = await authService.login(username, email, name);
+  const handleLogin = async (email: string, password: string) => {
+    const res = await authService.login(email, password);
     if (res.success) {
       setCurrentUser(res.data);
       
@@ -344,6 +345,14 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         setAiLimitCount(0);
       }
 
+      await loadAllData();
+    }
+  };
+
+  const handleRegister = async (username: string, email: string, password: string, fname: string, lname: string) => {
+    const res = await authService.register(username, email, password, fname, lname);
+    if (res.success) {
+      setCurrentUser(res.data);
       await loadAllData();
     }
   };
@@ -526,6 +535,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         setCurrentTab,
         updateUserProfile: handleUpdateUserProfile,
         login: handleLogin,
+        register: handleRegister,
         logout: handleLogout,
         setActiveTimelineId,
         createTimeline: handleCreateTimeline,
