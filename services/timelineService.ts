@@ -131,12 +131,44 @@ export const authService = {
 // Timeline Operations Service Client
 export const timelineService = {
   async getTimelines(): Promise<TimelineProps[]> {
-    await delay(200);
-    const { timelines } = getDB();
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     const user = await authService.getCurrentUser();
-    
-    // Return timelines authored by the current user
-    if (!user) return timelines;
+    if (!user) return [];
+
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/timelines/user/${user.id}`, { headers });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        return result.data.timelines.map((t: any) => ({
+          id: t.id,
+          typeId: t.type.type === 'ROADMAP' ? 'with_time_unit' : 'without_time_unit',
+          timeUnitId: t.timeUnit ? (t.timeUnit.code.toLowerCase() === 'week' ? 'weekly' : t.timeUnit.code.toLowerCase() as any) : undefined,
+          duration: t.duration || 5,
+          title: t.title,
+          description: t.description,
+          author: {
+            id: t.author.id,
+            username: t.author.username
+          },
+          isGenerated: t.isGenerated,
+          isPublic: t.isPublic,
+          enableScheduling: t.enableScheduling,
+          version: t.version,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch timelines from backend", err);
+    }
+
+    const { timelines } = getDB();
     return timelines.filter(t => t.author.id === user.id);
   },
 
@@ -165,26 +197,64 @@ export const timelineService = {
   },
 
   async createTimeline(data: Omit<TimelineProps, 'id' | 'author' | 'isGenerated' | 'version' | 'createdAt' | 'updatedAt'>): Promise<TimelineProps> {
-    await delay(300);
-    const { timelines, segments } = getDB();
-    const currentUser = await authService.getCurrentUser() || DEFAULT_USER;
-
-    const newTimeline: TimelineProps = {
-      ...data,
-      id: `tl-${Math.random().toString(36).substr(2, 6)}`,
-      author: {
-        id: currentUser.id,
-        username: currentUser.username
-      },
-      isGenerated: false,
-      version: "1.0",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
+    
+    const bodyData = {
+      title: data.title,
+      description: data.description,
+      typeId: data.typeId,
+      timeUnitId: data.typeId === 'with_time_unit' ? data.timeUnitId : undefined,
+      duration: data.typeId === 'with_time_unit' ? Number(data.duration) : undefined,
+      isPublic: data.isPublic,
+      enableScheduling: data.typeId === 'with_time_unit' ? data.enableScheduling : false
     };
 
-    timelines.unshift(newTimeline);
-    saveDB(timelines, segments);
-    return newTimeline;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/timelines`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(bodyData)
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to create timeline");
+    }
+
+    const t = result.data;
+    const mappedTimeline: TimelineProps = {
+      id: t.id,
+      typeId: t.type.type === 'ROADMAP' ? 'with_time_unit' : 'without_time_unit',
+      timeUnitId: t.timeUnit ? (t.timeUnit.code.toLowerCase() === 'week' ? 'weekly' : t.timeUnit.code.toLowerCase() as any) : undefined,
+      duration: t.duration || 5,
+      title: t.title,
+      description: t.description,
+      author: {
+        id: t.author.id,
+        username: t.author.username
+      },
+      isGenerated: t.isGenerated,
+      isPublic: t.isPublic,
+      enableScheduling: t.enableScheduling,
+      version: t.version,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt
+    };
+
+    try {
+      const { timelines, segments } = getDB();
+      timelines.unshift(mappedTimeline);
+      saveDB(timelines, segments);
+    } catch (e) {}
+
+    return mappedTimeline;
   },
 
   async deleteTimeline(id: string): Promise<void> {
