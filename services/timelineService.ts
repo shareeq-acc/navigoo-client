@@ -17,6 +17,82 @@ const DEFAULT_USER: UserProps = {
   avatar: "https://picsum.photos/seed/totok/100/100"
 };
 
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  
+  const headers = new Headers(options.headers || {});
+  const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  
+  const config: RequestInit = {
+    ...options,
+    headers,
+    credentials: 'include',
+  };
+
+  let response = await fetch(url, config);
+
+  if (response.status === 401 && !url.includes('/api/auth/refresh') && !url.includes('/api/auth/login') && !url.includes('/api/auth/register')) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      try {
+        const refreshRes = await fetch(`${API_URL}/api/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        const refreshResult = await refreshRes.json();
+        
+        if (refreshRes.ok && refreshResult.success && refreshResult.data?.accessToken) {
+          const newToken = refreshResult.data.accessToken;
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem("timeline_app_token", newToken);
+          }
+          isRefreshing = false;
+          onRefreshed(newToken);
+        } else {
+          isRefreshing = false;
+          if (typeof window !== 'undefined') {
+            window.localStorage.removeItem("timeline_app_token");
+            window.localStorage.removeItem("timeline_app_user");
+          }
+          throw new Error("Session expired");
+        }
+      } catch (err) {
+        isRefreshing = false;
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem("timeline_app_token");
+          window.localStorage.removeItem("timeline_app_user");
+        }
+        throw err;
+      }
+    }
+
+    return new Promise<Response>((resolve, reject) => {
+      subscribeTokenRefresh((newToken) => {
+        const newHeaders = new Headers(config.headers || {});
+        newHeaders.set('Authorization', `Bearer ${newToken}`);
+        resolve(fetch(url, { ...config, headers: newHeaders }));
+      });
+    });
+  }
+
+  return response;
+}
+
 // Authentication Service Helper
 export const authService = {
   async getCurrentUser(): Promise<UserProps | null> {
@@ -28,9 +104,42 @@ export const authService = {
     return JSON.parse(userStr);
   },
 
+  async getMe(): Promise<UserProps | null> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
+    if (!token) return null;
+
+    try {
+      const response = await fetchWithAuth(`${API_URL}/api/auth/me`);
+      const result = await response.json();
+      if (response.ok && result.success) {
+        const u = result.data;
+        const mappedUser: UserProps = {
+          id: u.id,
+          username: u.username,
+          name: `${u.fname} ${u.lname}`,
+          email: u.email,
+          avatar: u.avatar || `https://picsum.photos/seed/${u.username}/100/100`
+        };
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem("timeline_app_user", JSON.stringify(mappedUser));
+        }
+        return mappedUser;
+      }
+    } catch (err) {
+      console.error("Failed to fetch user context from /me", err);
+    }
+    
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem("timeline_app_token");
+      window.localStorage.removeItem("timeline_app_user");
+    }
+    return null;
+  },
+
   async login(email: string, password: string): Promise<SuccessResponse<UserProps>> {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${API_URL}/api/auth/login`, {
+    const response = await fetchWithAuth(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -69,7 +178,7 @@ export const authService = {
 
   async register(username: string, email: string, password: string, fname: string, lname: string): Promise<SuccessResponse<UserProps>> {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${API_URL}/api/auth/register`, {
+    const response = await fetchWithAuth(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -109,19 +218,17 @@ export const authService = {
 
   async logout(): Promise<void> {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    try {
+      await fetchWithAuth(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (e) {
+      console.warn("Logout request failed", e);
+    }
     if (typeof window !== 'undefined') {
-      const token = window.localStorage.getItem("timeline_app_token");
-      try {
-        await fetch(`${API_URL}/api/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      } catch (e) {
-        console.warn("Logout request failed", e);
-      }
       window.localStorage.removeItem("timeline_app_user");
       window.localStorage.removeItem("timeline_app_token");
     }
@@ -135,14 +242,8 @@ export const timelineService = {
     const user = await authService.getCurrentUser();
     if (!user) return [];
 
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
     try {
-      const response = await fetch(`${API_URL}/api/timelines/user/${user.id}`, { headers });
+      const response = await fetchWithAuth(`${API_URL}/api/timelines/user/${user.id}`);
       const result = await response.json();
       if (response.ok && result.success) {
         return result.data.timelines.map((t: any) => ({
@@ -210,16 +311,11 @@ export const timelineService = {
       enableScheduling: data.typeId === 'with_time_unit' ? data.enableScheduling : false
     };
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_URL}/api/timelines`, {
+    const response = await fetchWithAuth(`${API_URL}/api/timelines`, {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(bodyData)
     });
 
@@ -334,14 +430,9 @@ export const timelineService = {
 export const segmentService = {
   async getSegmentsByTimelineId(timelineId: string): Promise<SegmentProps[]> {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
 
     try {
-      const response = await fetch(`${API_URL}/api/segments/timeline/${timelineId}`, { headers });
+      const response = await fetchWithAuth(`${API_URL}/api/segments/timeline/${timelineId}`);
       const result = await response.json();
       if (response.ok && result.success) {
         return result.data.segments.map((s: any) => ({
@@ -374,13 +465,6 @@ export const segmentService = {
 
   async saveSegment(segmentData: Partial<SegmentProps> & { timelineId: string; unitNumber: number }): Promise<SegmentProps> {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
 
     const isEdit = !!segmentData.id;
 
@@ -395,9 +479,11 @@ export const segmentService = {
         scheduleDate: segmentData.schedule?.scheduleDate || undefined
       };
 
-      const response = await fetch(`${API_URL}/api/segments/${segmentData.id}`, {
+      const response = await fetchWithAuth(`${API_URL}/api/segments/${segmentData.id}`, {
         method: 'PUT',
-        headers,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(bodyData)
       });
 
@@ -450,9 +536,11 @@ export const segmentService = {
         scheduleDate: segmentData.schedule?.scheduleDate || undefined
       };
 
-      const response = await fetch(`${API_URL}/api/segments`, {
+      const response = await fetchWithAuth(`${API_URL}/api/segments`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(bodyData)
       });
 

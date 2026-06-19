@@ -235,7 +235,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const loadAllData = async () => {
     setIsLoading(true);
     try {
-      const user = await authService.getCurrentUser();
+      const user = await authService.getMe();
       setCurrentUser(user);
       
       const tList = await timelineService.getTimelines();
