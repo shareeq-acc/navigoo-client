@@ -281,10 +281,54 @@ export const timelineService = {
   },
 
   async getExploreTimelines(searchQuery = "", typeFilter = "", timeUnitFilter = ""): Promise<TimelineProps[]> {
-    await delay(200);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    try {
+      const response = await fetchWithAuth(`${API_URL}/api/timelines/explore`);
+      const result = await response.json();
+      if (response.ok && result.success) {
+        const allTimelines: TimelineProps[] = [];
+        Object.keys(result.data).forEach(key => {
+          const typeGroup = result.data[key];
+          if (typeGroup && Array.isArray(typeGroup.timelines)) {
+            typeGroup.timelines.forEach((t: any) => {
+              allTimelines.push({
+                id: t.id,
+                typeId: t.type.type === 'ROADMAP' ? 'with_time_unit' : 'without_time_unit',
+                timeUnitId: t.timeUnit ? (t.timeUnit.code.toLowerCase() === 'week' ? 'weekly' : t.timeUnit.code.toLowerCase() as any) : undefined,
+                duration: t.duration || 5,
+                title: t.title,
+                description: t.description,
+                author: {
+                  id: t.author.id,
+                  username: t.author.username
+                },
+                isGenerated: t.isGenerated,
+                isPublic: t.isPublic,
+                enableScheduling: t.enableScheduling,
+                version: t.version,
+                createdAt: t.createdAt,
+                updatedAt: t.updatedAt
+              });
+            });
+          }
+        });
+
+        return allTimelines.filter(t => {
+          const matchesSearch = searchQuery === "" ||
+            t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            t.description.toLowerCase().includes(searchQuery.toLowerCase());
+          
+          const matchesType = typeFilter === "" || t.typeId === typeFilter;
+          const matchesTimeUnit = timeUnitFilter === "" || t.timeUnitId === timeUnitFilter;
+
+          return matchesSearch && matchesType && matchesTimeUnit;
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch explore timelines from backend", err);
+    }
+
     const { timelines } = getDB();
-    
-    // Explore displays public timelines plus timelines authored by current user (for simple sandbox testing)
     return timelines.filter(t => {
       const matchesSearch = searchQuery === "" ||
         t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -299,7 +343,6 @@ export const timelineService = {
 
   async createTimeline(data: Omit<TimelineProps, 'id' | 'author' | 'isGenerated' | 'version' | 'createdAt' | 'updatedAt'>): Promise<TimelineProps> {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
     
     const bodyData = {
       title: data.title,
