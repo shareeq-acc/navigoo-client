@@ -29,7 +29,7 @@ export const authService = {
   },
 
   async login(email: string, password: string): Promise<SuccessResponse<UserProps>> {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
@@ -68,7 +68,7 @@ export const authService = {
   },
 
   async register(username: string, email: string, password: string, fname: string, lname: string): Promise<SuccessResponse<UserProps>> {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     const response = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: {
@@ -108,7 +108,7 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     if (typeof window !== 'undefined') {
       const token = window.localStorage.getItem("timeline_app_token");
       try {
