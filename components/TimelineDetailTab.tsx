@@ -27,6 +27,23 @@ import { useTimelineStore } from '../hooks/TimelineContext';
 import { SegmentProps, SegmentGoalProps, SegmentReferenceProps } from '../types/timeline';
 import { motion, AnimatePresence } from 'motion/react';
 
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  const cleanDateStr = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const parts = cleanDateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const month = parts[1];
+    const day = parts[2];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthIdx = parseInt(month, 10) - 1;
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${months[monthIdx]} ${parseInt(day, 10)}, ${year}`;
+    }
+  }
+  return cleanDateStr;
+};
+
 export default function TimelineDetailTab() {
   const { 
     activeTimeline, 
@@ -130,7 +147,9 @@ export default function TimelineDetailTab() {
       setEditingMilestone(seg.milestone || "");
       setEditingGoals(seg.goals.map(g => g.goal));
       setEditingRefs(seg.references.map(r => r.reference));
-      setEditingScheduleDate(seg.schedule?.scheduleDate || "");
+      const rawDate = seg.schedule?.scheduleDate || "";
+      const cleanDate = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
+      setEditingScheduleDate(cleanDate);
     } else {
       setEditingTitle(`Milestone ${unitNum} Objective`);
       setEditingMilestone(`Phase ${Math.ceil(unitNum / 2)}`);
@@ -423,7 +442,7 @@ export default function TimelineDetailTab() {
                         {seg.schedule?.scheduleDate ? (
                           <div className="flex items-center gap-1.5 text-zinc-500 font-mono">
                             <Calendar className="w-3.5 h-3.5 text-zinc-400" />
-                            <span>{seg.schedule.scheduleDate}</span>
+                            <span>{formatDate(seg.schedule.scheduleDate)}</span>
                           </div>
                         ) : (
                           <span className="text-zinc-300 font-normal font-mono text-[9px] uppercase tracking-wider">No scheduled target</span>

@@ -333,56 +333,167 @@ export const timelineService = {
 // Segment Node CRUD & AI Logic Operations
 export const segmentService = {
   async getSegmentsByTimelineId(timelineId: string): Promise<SegmentProps[]> {
-    await delay(100);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/segments/timeline/${timelineId}`, { headers });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        return result.data.segments.map((s: any) => ({
+          id: s.id,
+          timelineId: s.timelineId,
+          unitNumber: s.unitNumber,
+          title: s.title,
+          milestone: s.milestone,
+          isForkModified: s.isForkModified || false,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+          goals: s.goals || [],
+          references: s.references || [],
+          schedule: s.scheduling ? {
+            id: `sch-${s.id}`,
+            segmentId: s.id,
+            scheduleDate: s.scheduling.scheduleDate,
+            completedAt: s.scheduling.completedAt
+          } : null
+        })).sort((a: any, b: any) => a.unitNumber - b.unitNumber);
+      }
+    } catch (err) {
+      console.error("Failed to fetch segments from backend", err);
+    }
+
     const { segments } = getDB();
     const timelineSegments = segments.filter(s => s.timelineId === timelineId);
     return timelineSegments.sort((a, b) => a.unitNumber - b.unitNumber);
   },
 
   async saveSegment(segmentData: Partial<SegmentProps> & { timelineId: string; unitNumber: number }): Promise<SegmentProps> {
-    await delay(250);
-    const { timelines, segments } = getDB();
-    
-    // Check if segment already exists for this unit number
-    const existingIndex = segments.findIndex(s => s.timelineId === segmentData.timelineId && s.unitNumber === segmentData.unitNumber);
-
-    const segmentId = segmentData.id || `seg-${segmentData.timelineId}-${segmentData.unitNumber}-${Math.random().toString(36).substr(2, 4)}`;
-
-    const newSegment: SegmentProps = {
-      id: segmentId,
-      timelineId: segmentData.timelineId,
-      unitNumber: segmentData.unitNumber,
-      title: segmentData.title || `Interval ${segmentData.unitNumber} Objective`,
-      milestone: segmentData.milestone || `Phase ${Math.ceil(segmentData.unitNumber / 3)}`,
-      isForkModified: segmentData.isForkModified || false,
-      createdAt: segmentData.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      goals: segmentData.goals || [],
-      references: segmentData.references || [],
-      schedule: segmentData.schedule || {
-        id: `sch-${segmentId}`,
-        segmentId: segmentId,
-        scheduleDate: null,
-        completedAt: null
-      }
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
     };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
-    if (existingIndex > -1) {
-      segments[existingIndex] = newSegment;
+    const isEdit = !!segmentData.id;
+
+    if (isEdit) {
+      const bodyData = {
+        timelineId: segmentData.timelineId,
+        unitNumber: segmentData.unitNumber,
+        title: segmentData.title,
+        milestone: segmentData.milestone,
+        goals: segmentData.goals ? segmentData.goals.map(g => ({ id: g.id, goal: g.goal })) : [],
+        references: segmentData.references ? segmentData.references.map(r => ({ id: r.id, reference: r.reference })) : [],
+        scheduleDate: segmentData.schedule?.scheduleDate || undefined
+      };
+
+      const response = await fetch(`${API_URL}/api/segments/${segmentData.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(bodyData)
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update segment");
+      }
+
+      const s = result.data;
+      const mappedSegment: SegmentProps = {
+        id: s.id,
+        timelineId: s.timelineId,
+        unitNumber: s.unitNumber,
+        title: s.title,
+        milestone: s.milestone,
+        isForkModified: s.isForkModified || false,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        goals: s.goals || [],
+        references: s.references || [],
+        schedule: s.scheduling ? {
+          id: `sch-${s.id}`,
+          segmentId: s.id,
+          scheduleDate: s.scheduling.scheduleDate,
+          completedAt: s.scheduling.completedAt
+        } : null
+      };
+
+      try {
+        const { timelines, segments } = getDB();
+        const existingIdx = segments.findIndex(x => x.id === mappedSegment.id);
+        if (existingIdx > -1) {
+          segments[existingIdx] = mappedSegment;
+        } else {
+          segments.push(mappedSegment);
+        }
+        saveDB(timelines, segments);
+      } catch (e) {}
+
+      return mappedSegment;
+
     } else {
-      segments.push(newSegment);
-    }
+      const bodyData = {
+        timelineId: segmentData.timelineId,
+        unitNumber: segmentData.unitNumber,
+        title: segmentData.title,
+        milestone: segmentData.milestone,
+        goals: segmentData.goals ? segmentData.goals.map(g => g.goal) : [],
+        references: segmentData.references ? segmentData.references.map(r => r.reference) : [],
+        scheduleDate: segmentData.schedule?.scheduleDate || undefined
+      };
 
-    // Increment associated timeline's version
-    const timelineIdx = timelines.findIndex(t => t.id === segmentData.timelineId);
-    if (timelineIdx > -1) {
-      const currentVer = parseFloat(timelines[timelineIdx].version) || 1.0;
-      timelines[timelineIdx].version = (currentVer + 0.1).toFixed(1);
-      timelines[timelineIdx].updatedAt = new Date().toISOString();
-    }
+      const response = await fetch(`${API_URL}/api/segments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(bodyData)
+      });
 
-    saveDB(timelines, segments);
-    return newSegment;
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to create segment");
+      }
+
+      const s = result.data;
+      const mappedSegment: SegmentProps = {
+        id: s.id,
+        timelineId: s.timelineId,
+        unitNumber: s.unitNumber,
+        title: s.title,
+        milestone: s.milestone,
+        isForkModified: s.isForkModified || false,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        goals: s.goals || [],
+        references: s.references || [],
+        schedule: s.scheduling ? {
+          id: `sch-${s.id}`,
+          segmentId: s.id,
+          scheduleDate: s.scheduling.scheduleDate,
+          completedAt: s.scheduling.completedAt
+        } : null
+      };
+
+      try {
+        const { timelines, segments } = getDB();
+        const existingIdx = segments.findIndex(x => x.timelineId === mappedSegment.timelineId && x.unitNumber === mappedSegment.unitNumber);
+        if (existingIdx > -1) {
+          segments[existingIdx] = mappedSegment;
+        } else {
+          segments.push(mappedSegment);
+        }
+        saveDB(timelines, segments);
+      } catch (e) {}
+
+      return mappedSegment;
+    }
   },
 
   async deleteSegment(timelineId: string, unitNumber: number): Promise<void> {
