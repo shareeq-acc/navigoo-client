@@ -397,11 +397,21 @@ export const timelineService = {
   },
 
   async deleteTimeline(id: string): Promise<void> {
-    await delay(200);
-    const { timelines, segments } = getDB();
-    const filteredTimelines = timelines.filter(t => t.id !== id);
-    const filteredSegments = segments.filter(s => s.timelineId !== id);
-    saveDB(filteredTimelines, filteredSegments);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const response = await fetchWithAuth(`${API_URL}/api/timelines/${id}`, {
+      method: 'DELETE'
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to delete timeline");
+    }
+
+    try {
+      const { timelines, segments } = getDB();
+      const filteredTimelines = timelines.filter(t => t.id !== id);
+      const filteredSegments = segments.filter(s => s.timelineId !== id);
+      saveDB(filteredTimelines, filteredSegments);
+    } catch (e) {}
   },
 
   async updateTimeline(id: string, data: { title?: string; description?: string; isPublic?: boolean }): Promise<TimelineProps> {
