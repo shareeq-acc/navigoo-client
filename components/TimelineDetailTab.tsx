@@ -57,6 +57,7 @@ export default function TimelineDetailTab() {
     stats,
     currentUser,
     forkTimeline,
+    updateTimeline,
     accentColor
   } = useTimelineStore();
 
@@ -115,6 +116,33 @@ export default function TimelineDetailTab() {
   const [editingRefs, setEditingRefs] = useState<string[]>([]);
   const [newRefInput, setNewRefInput] = useState("");
   const [editingScheduleDate, setEditingScheduleDate] = useState("");
+
+  // Timeline Edit state
+  const [isEditingTimeline, setIsEditingTimeline] = useState(false);
+  const [editingTimelineTitle, setEditingTimelineTitle] = useState("");
+  const [editingTimelineDesc, setEditingTimelineDesc] = useState("");
+  const [editingTimelineIsPublic, setEditingTimelineIsPublic] = useState(true);
+
+  const handleOpenEditTimeline = () => {
+    setEditingTimelineTitle(activeTimeline?.title || "");
+    setEditingTimelineDesc(activeTimeline?.description || "");
+    setEditingTimelineIsPublic(activeTimeline?.isPublic !== undefined ? activeTimeline.isPublic : true);
+    setIsEditingTimeline(true);
+  };
+
+  const handleSaveTimelineEdit = async () => {
+    if (!activeTimeline) return;
+    try {
+      await updateTimeline(activeTimeline.id, {
+        title: editingTimelineTitle,
+        description: editingTimelineDesc,
+        isPublic: editingTimelineIsPublic
+      });
+      setIsEditingTimeline(false);
+    } catch (err: any) {
+      alert(err.message || "Failed to update timeline");
+    }
+  };
 
   if (!activeTimeline) return null;
 
@@ -315,8 +343,16 @@ export default function TimelineDetailTab() {
               </button>
             </div>
 
-            {/* Fork action (if not owned) */}
-            {!isOwnedByMe && (
+            {/* Edit / Fork action */}
+            {isOwnedByMe ? (
+              <button
+                onClick={handleOpenEditTimeline}
+                className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-850 text-white border border-transparent rounded-lg font-bold text-[10px] uppercase font-mono tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm w-full sm:w-auto text-center animate-in fade-in"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>Edit Roadmap</span>
+              </button>
+            ) : (
               <button
                 disabled={isForking}
                 onClick={handleForkInline}
@@ -798,6 +834,109 @@ export default function TimelineDetailTab() {
                     </div>
                   </>
                 )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* EDIT TIMELINE DETAILS DRAWER */}
+      <AnimatePresence>
+        {isEditingTimeline && (
+          <>
+            {/* Background overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.35 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditingTimeline(false)}
+              className="fixed inset-0 bg-slate-900 z-45"
+            />
+
+            {/* Sidebar drawer panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+              className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-2xl z-50 flex flex-col border-l border-zinc-200 select-none h-screen overflow-hidden"
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-zinc-200 flex justify-between items-center bg-zinc-50/50">
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-none font-mono">
+                    Configure settings
+                  </span>
+                  <span className="text-sm font-bold text-zinc-905 mt-1 flex items-center gap-1.5 capitalize font-serif italic">
+                    Edit Roadmap Details
+                  </span>
+                </div>
+                
+                <button
+                  onClick={() => setIsEditingTimeline(false)}
+                  className="p-2 border border-zinc-200 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition bg-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Form Content body */}
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 bg-white">
+                {/* Title input */}
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 font-mono">Roadmap Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Learn Fullstack Development"
+                    value={editingTimelineTitle}
+                    onChange={(e) => setEditingTimelineTitle(e.target.value)}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3.5 py-2 text-xs text-zinc-800 focus:outline-none focus:border-zinc-500 font-mono"
+                  />
+                </div>
+
+                {/* Description input */}
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 font-mono">Description</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Provide a detailed roadmap plan summary..."
+                    value={editingTimelineDesc}
+                    onChange={(e) => setEditingTimelineDesc(e.target.value)}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3.5 py-2.5 text-xs text-zinc-800 focus:outline-none focus:border-zinc-500 font-mono resize-none leading-relaxed"
+                  />
+                </div>
+
+                {/* Visibility input */}
+                <div className="flex items-center justify-between py-2 border-t border-zinc-100 mt-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Public Visibility</span>
+                    <p className="text-[10px] text-zinc-450 font-normal font-sans">Publish this roadmap so others can view and fork it in the explore tab.</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={editingTimelineIsPublic}
+                    onChange={(e) => setEditingTimelineIsPublic(e.target.checked)}
+                    className={`w-4 h-4 cursor-pointer accent-zinc-900`}
+                  />
+                </div>
+              </div>
+
+              {/* Drawer footer controls */}
+              <div className="p-6 border-t border-[#eaecf0] bg-zinc-50 flex justify-end items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingTimeline(false)}
+                  className="px-4 py-2 border border-zinc-200 hover:bg-zinc-100 rounded-lg text-[10px] uppercase font-mono tracking-wider font-extrabold text-zinc-500 transition bg-white cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveTimelineEdit}
+                  className="px-5 py-2 bg-zinc-900 hover:bg-zinc-850 text-white rounded-lg text-[10px] uppercase font-mono tracking-wider font-extrabold shadow-sm transition cursor-pointer"
+                >
+                  Save Changes
+                </button>
               </div>
             </motion.div>
           </>

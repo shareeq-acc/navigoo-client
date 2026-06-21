@@ -49,6 +49,7 @@ interface TimelineContextType {
   createTimeline: (data: Omit<TimelineProps, 'id' | 'author' | 'isGenerated' | 'version' | 'createdAt' | 'updatedAt'>) => Promise<TimelineProps>;
   deleteTimeline: (id: string) => Promise<void>;
   forkTimeline: (id: string) => Promise<void>;
+  updateTimeline: (id: string, data: { title?: string; description?: string; isPublic?: boolean }) => Promise<void>;
   
   // Segment actions
   loadSegmentsForActive: () => Promise<void>;
@@ -399,6 +400,11 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     setActiveTimelineId(forked.id);
   };
 
+  const handleUpdateTimeline = async (id: string, data: { title?: string; description?: string; isPublic?: boolean }) => {
+    await timelineService.updateTimeline(id, data);
+    await loadAllData();
+  };
+
   const handleSaveSegment = async (data: any) => {
     await segmentService.saveSegment(data);
     if (activeTimelineId) {
@@ -541,6 +547,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         createTimeline: handleCreateTimeline,
         deleteTimeline: handleDeleteTimeline,
         forkTimeline: handleForkTimeline,
+        updateTimeline: handleUpdateTimeline,
         loadSegmentsForActive: async () => {},
         saveSegment: handleSaveSegment,
         deleteSegment: handleDeleteSegment,

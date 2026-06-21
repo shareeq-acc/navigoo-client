@@ -404,6 +404,56 @@ export const timelineService = {
     saveDB(filteredTimelines, filteredSegments);
   },
 
+  async updateTimeline(id: string, data: { title?: string; description?: string; isPublic?: boolean }): Promise<TimelineProps> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    
+    const response = await fetchWithAuth(`${API_URL}/api/timelines/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to update timeline");
+    }
+
+    const t = result.data;
+    const mappedTimeline: TimelineProps = {
+      id: t.id,
+      typeId: t.type.type === 'ROADMAP' ? 'with_time_unit' : 'without_time_unit',
+      timeUnitId: t.timeUnit ? (t.timeUnit.code.toLowerCase() === 'week' ? 'weekly' : t.timeUnit.code.toLowerCase() as any) : undefined,
+      duration: t.duration || 5,
+      title: t.title,
+      description: t.description,
+      author: {
+        id: t.author.id,
+        username: t.author.username
+      },
+      isGenerated: t.isGenerated,
+      isPublic: t.isPublic,
+      enableScheduling: t.enableScheduling,
+      version: t.version,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt
+    };
+
+    try {
+      const { timelines, segments } = getDB();
+      const existingIdx = timelines.findIndex(x => x.id === id);
+      if (existingIdx > -1) {
+        timelines[existingIdx] = mappedTimeline;
+      } else {
+        timelines.unshift(mappedTimeline);
+      }
+      saveDB(timelines, segments);
+    } catch (e) {}
+
+    return mappedTimeline;
+  },
+
   async forkTimeline(timelineId: string): Promise<TimelineProps> {
     await delay(400);
     const { timelines, segments } = getDB();

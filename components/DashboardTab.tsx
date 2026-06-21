@@ -10,9 +10,12 @@ import {
   ChevronRight,
   RefreshCw,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Edit3,
+  X
 } from 'lucide-react';
 import { useTimelineStore } from '../hooks/TimelineContext';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function DashboardTab() {
   const { 
@@ -21,6 +24,7 @@ export default function DashboardTab() {
     createTimeline, 
     deleteTimeline, 
     forkTimeline,
+    updateTimeline,
     searchQuery,
     generateAI,
     aiLimitCount,
@@ -71,6 +75,26 @@ export default function DashboardTab() {
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [timelineToDelete, setTimelineToDelete] = useState<any | null>(null);
+  
+  // Edit Timeline Form state
+  const [editingTimeline, setEditingTimeline] = useState<any | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editIsPublic, setEditIsPublic] = useState(true);
+
+  const handleSaveTimelineEdit = async () => {
+    if (!editingTimeline) return;
+    try {
+      await updateTimeline(editingTimeline.id, {
+        title: editTitle,
+        description: editDesc,
+        isPublic: editIsPublic
+      });
+      setEditingTimeline(null);
+    } catch (err: any) {
+      alert(err.message || "Failed to update timeline");
+    }
+  };
   
   // Create Timeline Form state
   const [newTitle, setNewTitle] = useState("");
@@ -570,14 +594,15 @@ Target Audience: ${aiAudience || "General Learners"}`;
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (confirm(`Do you want to fork: ${timeline.title}?`)) {
-                              forkTimeline(timeline.id);
-                            }
+                            setEditingTimeline(timeline);
+                            setEditTitle(timeline.title);
+                            setEditDesc(timeline.description || "");
+                            setEditIsPublic(timeline.isPublic !== undefined ? timeline.isPublic : true);
                           }}
                           className={`p-1.5 text-slate-400 hover:${activeTheme.accentText} hover:bg-slate-50 rounded`}
-                          title="Fork Timeline"
+                          title="Edit Timeline"
                         >
-                          <GitFork className="w-3.5 h-3.5" />
+                          <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={(e) => {
@@ -676,6 +701,109 @@ Target Audience: ${aiAudience || "General Learners"}`;
           </div>
         </div>
       )}
+
+      {/* EDIT TIMELINE DETAILS DRAWER */}
+      <AnimatePresence>
+        {editingTimeline && (
+          <>
+            {/* Background overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.35 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingTimeline(null)}
+              className="fixed inset-0 bg-slate-900 z-45"
+            />
+
+            {/* Sidebar drawer panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+              className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-2xl z-50 flex flex-col border-l border-zinc-200 select-none h-screen overflow-hidden"
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-zinc-200 flex justify-between items-center bg-zinc-50/50">
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-none font-mono">
+                    Configure settings
+                  </span>
+                  <span className="text-sm font-bold text-zinc-905 mt-1 flex items-center gap-1.5 capitalize font-serif italic">
+                    Edit Timeline Details
+                  </span>
+                </div>
+                
+                <button
+                  onClick={() => setEditingTimeline(null)}
+                  className="p-2 border border-zinc-200 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-700 transition bg-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Form Content body */}
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 bg-white">
+                {/* Title input */}
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 font-mono">Timeline Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Learn Fullstack Development"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3.5 py-2 text-xs text-zinc-800 focus:outline-none focus:border-zinc-500 font-mono"
+                  />
+                </div>
+
+                {/* Description input */}
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5 font-mono">Description</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Provide a detailed roadmap plan summary..."
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3.5 py-2.5 text-xs text-zinc-800 focus:outline-none focus:border-zinc-500 font-mono resize-none leading-relaxed"
+                  />
+                </div>
+
+                {/* Visibility input */}
+                <div className="flex items-center justify-between py-2 border-t border-zinc-100 mt-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">Public Visibility</span>
+                    <p className="text-[10px] text-zinc-450 font-normal font-sans">Publish this timeline so others can view and fork it in the explore tab.</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={editIsPublic}
+                    onChange={(e) => setEditIsPublic(e.target.checked)}
+                    className={`w-4 h-4 cursor-pointer accent-zinc-900`}
+                  />
+                </div>
+              </div>
+
+              {/* Drawer footer controls */}
+              <div className="p-6 border-t border-[#eaecf0] bg-zinc-50 flex justify-end items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setEditingTimeline(null)}
+                  className="px-4 py-2 border border-zinc-200 hover:bg-zinc-100 rounded-lg text-[10px] uppercase font-mono tracking-wider font-extrabold text-zinc-500 transition bg-white cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveTimelineEdit}
+                  className="px-5 py-2 bg-zinc-900 hover:bg-zinc-850 text-white rounded-lg text-[10px] uppercase font-mono tracking-wider font-extrabold shadow-sm transition cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
