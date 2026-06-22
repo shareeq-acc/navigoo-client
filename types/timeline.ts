@@ -26,7 +26,8 @@ export interface SegmentGoalProps {
 export interface SegmentReferenceProps {
   id: string;
   segmentId: string;
-  reference: string; // URL or text
+  reference: string; // URL
+  label?: string; // Display placeholder / name
 }
 
 export interface SegmentSchedulingProps {

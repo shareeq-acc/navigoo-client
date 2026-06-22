@@ -753,7 +753,7 @@ export const segmentService = {
         title: segmentData.title,
         milestone: segmentData.milestone,
         goals: segmentData.goals ? segmentData.goals.map(g => ({ id: g.id, goal: g.goal })) : [],
-        references: segmentData.references ? segmentData.references.map(r => ({ id: r.id, reference: r.reference })) : [],
+        references: segmentData.references ? segmentData.references.map(r => ({ id: r.id, reference: r.reference, label: r.label })) : [],
         scheduleDate: segmentData.schedule?.scheduleDate || undefined
       };
 

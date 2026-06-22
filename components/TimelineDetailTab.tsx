@@ -113,8 +113,9 @@ export default function TimelineDetailTab() {
   const [editingMilestone, setEditingMilestone] = useState("");
   const [editingGoals, setEditingGoals] = useState<string[]>([]);
   const [newGoalInput, setNewGoalInput] = useState("");
-  const [editingRefs, setEditingRefs] = useState<string[]>([]);
-  const [newRefInput, setNewRefInput] = useState("");
+  const [editingRefs, setEditingRefs] = useState<{label: string; url: string}[]>([]);
+  const [newRefLabel, setNewRefLabel] = useState("");
+  const [newRefUrl, setNewRefUrl] = useState("");
   const [editingScheduleDate, setEditingScheduleDate] = useState("");
 
   // Timeline Edit state
@@ -174,7 +175,7 @@ export default function TimelineDetailTab() {
       setEditingTitle(seg.title);
       setEditingMilestone(seg.milestone || "");
       setEditingGoals(seg.goals.map(g => g.goal));
-      setEditingRefs(seg.references.map(r => r.reference));
+      setEditingRefs(seg.references.map(r => ({ label: r.label || "", url: r.reference })));
       const rawDate = seg.schedule?.scheduleDate || "";
       const cleanDate = rawDate.includes('T') ? rawDate.split('T')[0] : rawDate;
       setEditingScheduleDate(cleanDate);
@@ -204,10 +205,11 @@ export default function TimelineDetailTab() {
       goal: gText
     }));
 
-    const formattedRefs = editingRefs.map((rText, index) => ({
+    const formattedRefs = editingRefs.map((ref, index) => ({
       id: existingSeg?.references[index]?.id || `r-form-${Date.now()}-${index}`,
       segmentId: existingSeg?.id || "",
-      reference: rText
+      reference: ref.url,
+      label: ref.label
     }));
 
     await saveSegment({
@@ -266,9 +268,10 @@ export default function TimelineDetailTab() {
   };
 
   const handleAddRef = () => {
-    if (newRefInput.trim()) {
-      setEditingRefs([...editingRefs, newRefInput.trim()]);
-      setNewRefInput("");
+    if (newRefUrl.trim()) {
+      setEditingRefs([...editingRefs, { label: newRefLabel.trim(), url: newRefUrl.trim() }]);
+      setNewRefLabel("");
+      setNewRefUrl("");
     }
   };
 
@@ -710,22 +713,34 @@ export default function TimelineDetailTab() {
                   
                   {/* Addition Form */}
                   {isOwnedByMe && (
-                    <div className="flex gap-2 mb-3">
-                      <input
-                        type="text"
-                        placeholder="e.g. https://react.dev/reference"
-                        value={newRefInput}
-                        onChange={(e) => setNewRefInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddRef()}
-                        className="flex-1 bg-zinc-50 border border-zinc-250/70 rounded-lg px-3.5 py-2 text-xs text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddRef}
-                        className="bg-zinc-100 hover:bg-zinc-205 text-zinc-700 border border-zinc-200 font-bold px-4 py-2 rounded-lg text-[10px] uppercase font-mono tracking-wider transition-all"
-                      >
-                        Add Url
-                      </button>
+                    <div className="flex flex-col gap-2 mb-3">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Label / Name (e.g. React Docs)"
+                          value={newRefLabel}
+                          onChange={(e) => setNewRefLabel(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddRef()}
+                          className="flex-1 bg-zinc-50 border border-zinc-250/70 rounded-lg px-3.5 py-2 text-xs text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="url"
+                          placeholder="URL (e.g. https://react.dev/reference)"
+                          value={newRefUrl}
+                          onChange={(e) => setNewRefUrl(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddRef()}
+                          className="flex-1 bg-zinc-50 border border-zinc-250/70 rounded-lg px-3.5 py-2 text-xs text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddRef}
+                          className="bg-zinc-100 hover:bg-zinc-205 text-zinc-700 border border-zinc-200 font-bold px-4 py-2 rounded-lg text-[10px] uppercase font-mono tracking-wider transition-all shrink-0"
+                        >
+                          Add
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -736,10 +751,15 @@ export default function TimelineDetailTab() {
                     <div className="flex flex-col gap-2">
                       {editingRefs.map((ref, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-zinc-50 border border-zinc-200 p-2.5 rounded-lg text-xs">
-                          <span className="truncate pr-1 font-mono text-[10px] text-zinc-650 flex-1">{ref}</span>
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0 pr-2">
+                            {ref.label && (
+                              <span className="font-semibold text-zinc-800 text-[11px] truncate">{ref.label}</span>
+                            )}
+                            <span className="truncate font-mono text-[10px] text-zinc-450 flex-1">{ref.url}</span>
+                          </div>
                           <div className="flex gap-1.5 shrink-0">
                             <a
-                              href={ref.startsWith('http') ? ref : `https://${ref}`}
+                              href={ref.url.startsWith('http') ? ref.url : `https://${ref.url}`}
                               target="_blank"
                               rel="noreferrer"
                               className="p-1.5 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-900 rounded transition"
