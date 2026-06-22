@@ -60,6 +60,18 @@ interface TimelineContextType {
   toggleSegmentComplete: (segmentId: string) => Promise<void>;
   scheduleSegment: (segmentId: string, date: string | null) => Promise<void>;
   generateAI: (prompt: string, duration: number, timeUnit: 'daily' | 'weekly' | 'monthly', optionalTimelineId?: string) => Promise<string>;
+  generateTimelineWithAI: (data: {
+    title: string;
+    description: string;
+    typeId: 'with_time_unit' | 'without_time_unit';
+    timeUnitId?: 'daily' | 'weekly' | 'monthly';
+    duration?: number;
+    aiDomain?: string;
+    aiLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
+    aiAudience?: string;
+    isPublic?: boolean;
+    enableScheduling?: boolean;
+  }) => Promise<TimelineProps>;
 
   // Time Tracker state
   timeTracker: {
@@ -466,8 +478,8 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     if (!targetId) return "";
     
     // Check AI limit
-    if (aiLimitCount >= aiLimitMax) {
-      throw new Error(`AI Limit Reached: You have consumed your weekly quota of ${aiLimitMax} AI requests. Please check your usage panel in Settings.`);
+    if (currentUser && currentUser.aiUsage >= 100) {
+      throw new Error("AI Limit Reached: You have reached 100% of your weekly AI usage. Please check back next week.");
     }
 
     setIsLoading(true);
@@ -482,6 +494,35 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
       return result.message;
     } catch (e: any) {
       console.error("AI Generation error context:", e);
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGenerateTimelineWithAI = async (data: {
+    title: string;
+    description: string;
+    typeId: 'with_time_unit' | 'without_time_unit';
+    timeUnitId?: 'daily' | 'weekly' | 'monthly';
+    duration?: number;
+    aiDomain?: string;
+    aiLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
+    aiAudience?: string;
+    isPublic?: boolean;
+    enableScheduling?: boolean;
+  }): Promise<TimelineProps> => {
+    if (currentUser && currentUser.aiUsage >= 100) {
+      throw new Error("AI Limit Reached: You have reached 100% of your weekly AI usage. Please check back next week.");
+    }
+
+    setIsLoading(true);
+    try {
+      const created = await timelineService.generateTimelineWithAI(data);
+      await loadAllData();
+      return created;
+    } catch (e: any) {
+      console.error("AI Timeline generation failed:", e);
       throw e;
     } finally {
       setIsLoading(false);
@@ -574,6 +615,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         toggleSegmentComplete: handleToggleSegmentComplete,
         scheduleSegment: handleScheduleSegment,
         generateAI: handleGenerateAI,
+        generateTimelineWithAI: handleGenerateTimelineWithAI,
         timeTracker: {
           seconds: trackerSeconds,
           isRunning: trackerRunning,

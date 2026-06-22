@@ -198,7 +198,7 @@ function SettingsTab() {
   };
 
   const activeTheme = themeColors[accentColor] || themeColors.emerald;
-  const aiPercent = (aiLimitCount / aiLimitMax) * 100;
+  const aiPercent = currentUser?.aiUsage || 0;
 
   return (
     <div className="flex-1 bg-[#fcfcfd] p-8 overflow-y-auto font-sans">
@@ -303,12 +303,11 @@ function SettingsTab() {
           <div className="flex flex-col gap-4 text-xs font-semibold">
             <div className="flex justify-between items-center">
               <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-bold text-slate-700">Weekly Generation Limit</span>
+                <span className="text-xs font-bold text-slate-700">Weekly AI Usage</span>
                 <p className="text-[10px] text-slate-400 font-normal">Remaining quota for auto-generating timeline milestones.</p>
               </div>
               <div className="text-right">
-                <span className={`text-sm font-extrabold ${activeTheme.accentText}`}>{aiLimitCount}</span>
-                <span className="text-slate-400 text-xs font-bold"> / {aiLimitMax} requests</span>
+                <span className={`text-sm font-extrabold ${activeTheme.accentText}`}>{currentUser?.aiUsage || 0}%</span>
               </div>
             </div>
 

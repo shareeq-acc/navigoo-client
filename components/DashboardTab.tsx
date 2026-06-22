@@ -27,8 +27,8 @@ export default function DashboardTab() {
     updateTimeline,
     searchQuery,
     generateAI,
-    aiLimitCount,
-    aiLimitMax,
+    generateTimelineWithAI,
+    currentUser,
     accentColor
   } = useTimelineStore();
 
@@ -121,29 +121,25 @@ export default function DashboardTab() {
 
     if (buildMode === "ai") {
       // Validate Limit
-      if (aiLimitCount >= aiLimitMax) {
-        setErrorMsg(`AI Limit Reached: You have consumed your weekly quota of ${aiLimitMax} AI requests. View limits in Settings to upgrade.`);
+      if (currentUser && currentUser.aiUsage >= 100) {
+        setErrorMsg("AI Limit Reached: You have reached 100% of your weekly AI usage. Please check back next week.");
         return;
       }
 
       setIsGenerating(true);
       try {
-        const created = await createTimeline({
+        const created = await generateTimelineWithAI({
           title: newTitle,
           description: newDesc,
           typeId: newType,
           timeUnitId: newType === 'with_time_unit' ? newTimeUnit : undefined,
           duration: newType === 'with_time_unit' ? Number(newDuration) : 5,
+          aiDomain,
+          aiLevel,
+          aiAudience: aiAudience || "General Learners",
           isPublic: newIsPublic,
           enableScheduling: newType === 'with_time_unit' ? newEnableScheduling : false
         });
-
-        const aiPromptText = `Timeline Goal: ${newDesc || newTitle}
-Field/Domain: ${aiDomain}
-Target Level: ${aiLevel}
-Target Audience: ${aiAudience || "General Learners"}`;
-
-        await generateAI(aiPromptText, newType === 'with_time_unit' ? Number(newDuration) : 5, newType === 'with_time_unit' ? newTimeUnit : 'weekly', created.id);
 
         // Reset and redirect
         setNewTitle("");
@@ -305,7 +301,7 @@ Target Audience: ${aiAudience || "General Learners"}`;
           {buildMode === 'ai' && (
             <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-3 text-amber-800 flex justify-between items-center text-xs mb-4 animate-in fade-in">
               <span className="font-semibold text-[10px] uppercase font-mono tracking-wide">Usage this week:</span>
-              <span className="font-extrabold">{aiLimitCount} / {aiLimitMax} requests used</span>
+              <span className="font-extrabold">{currentUser?.aiUsage || 0}%</span>
             </div>
           )}
 

@@ -6,6 +6,7 @@ export interface UserProps {
   username: string;
   name: string;
   email: string;
+  aiUsage: number;
   avatar?: string;
 }
 
@@ -14,6 +15,7 @@ const DEFAULT_USER: UserProps = {
   username: "totok_mike",
   name: "Totok Michael",
   email: "tmichael20@gmail.com",
+  aiUsage: 0,
   avatar: "https://picsum.photos/seed/totok/100/100"
 };
 
@@ -138,6 +140,7 @@ export const authService = {
           username: u.username,
           name: `${u.fname} ${u.lname}`,
           email: u.email,
+          aiUsage: u.aiUsage || 0,
           avatar: u.avatar || `https://picsum.photos/seed/${u.username}/100/100`
         };
         if (typeof window !== 'undefined') {
@@ -181,6 +184,7 @@ export const authService = {
       username: user.username,
       name: `${user.fname} ${user.lname}`,
       email: user.email,
+      aiUsage: user.aiUsage || 0,
       avatar: user.avatar || `https://picsum.photos/seed/${user.username}/100/100`
     };
 
@@ -240,6 +244,7 @@ export const authService = {
       username: u.username,
       name: `${u.fname} ${u.lname}`,
       email: currentUser.email,
+      aiUsage: u.aiUsage || 0,
       avatar: u.avatar || `https://picsum.photos/seed/${u.username}/100/100`
     };
 
@@ -280,6 +285,7 @@ export const authService = {
       username: u.username,
       name: `${u.fname} ${u.lname}`,
       email: currentUser.email,
+      aiUsage: u.aiUsage || 0,
       avatar: u.avatar || `https://picsum.photos/seed/${u.username}/100/100`
     };
 
@@ -326,6 +332,7 @@ export const authService = {
       username: u.username,
       name: `${u.fname} ${u.lname}`,
       email: currentUser.email,
+      aiUsage: u.aiUsage || 0,
       avatar: u.avatar || `https://picsum.photos/seed/${u.username}/100/100`
     };
 
@@ -596,6 +603,75 @@ export const timelineService = {
     const result = await response.json();
     if (!response.ok || !result.success) {
       throw new Error(result.message || "Failed to fork timeline");
+    }
+
+    const t = result.data;
+    const mappedTimeline: TimelineProps = {
+      id: t.id,
+      typeId: t.type.type === 'ROADMAP' ? 'with_time_unit' : 'without_time_unit',
+      timeUnitId: t.timeUnit ? (t.timeUnit.code.toLowerCase() === 'week' ? 'weekly' : t.timeUnit.code.toLowerCase() as any) : undefined,
+      duration: t.duration || 5,
+      title: t.title,
+      description: t.description,
+      author: {
+        id: t.author.id,
+        username: t.author.username
+      },
+      isGenerated: t.isGenerated,
+      isPublic: t.isPublic,
+      enableScheduling: t.enableScheduling,
+      version: t.version,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt
+    };
+
+    try {
+      const { timelines, segments } = getDB();
+      timelines.unshift(mappedTimeline);
+      saveDB(timelines, segments);
+    } catch (e) {}
+
+    return mappedTimeline;
+  },
+
+  async generateTimelineWithAI(data: {
+    title: string;
+    description: string;
+    typeId: 'with_time_unit' | 'without_time_unit';
+    timeUnitId?: 'daily' | 'weekly' | 'monthly';
+    duration?: number;
+    aiDomain?: string;
+    aiLevel?: 'Beginner' | 'Intermediate' | 'Advanced';
+    aiAudience?: string;
+    isPublic?: boolean;
+    enableScheduling?: boolean;
+  }): Promise<TimelineProps> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    
+    const bodyData = {
+      title: data.title,
+      description: data.description,
+      typeId: data.typeId,
+      timeUnitId: data.typeId === 'with_time_unit' ? data.timeUnitId : undefined,
+      duration: data.typeId === 'with_time_unit' ? Number(data.duration) : undefined,
+      aiDomain: data.aiDomain,
+      aiLevel: data.aiLevel,
+      aiAudience: data.aiAudience,
+      isPublic: data.isPublic,
+      enableScheduling: data.typeId === 'with_time_unit' ? data.enableScheduling : false
+    };
+
+    const response = await fetchWithAuth(`${API_URL}/api/timelines/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(bodyData)
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to generate timeline with AI");
     }
 
     const t = result.data;
