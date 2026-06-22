@@ -14,7 +14,8 @@ import {
   ShieldCheck,
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowUpRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -116,8 +117,8 @@ export default function LoginPage() {
 
         {/* Brand visual header */}
         <div className="text-center mb-8">
-          <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-white font-bold text-sm mx-auto mb-3 font-sans">
-            N
+          <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-white mx-auto mb-3 shrink-0">
+            <ArrowUpRight className="w-6 h-6" />
           </div>
           <h2 className="text-xl font-bold tracking-tight text-zinc-900">
             {mode === 'login' ? 'Welcome back to Navigoo' : 'Join Navigoo'}

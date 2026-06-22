@@ -13,7 +13,7 @@ export default function Header() {
   return (
     <>
       <header className="w-full h-18 bg-white border-b border-zinc-200 px-4 md:px-8 flex items-center justify-between shrink-0 font-sans sticky top-0 z-40 select-none">
-        
+
         {/* Search Bar section */}
         <div className="relative flex-1 max-w-[245px] xs:max-w-[290px] sm:max-w-sm md:w-96 md:max-w-none md:flex-none">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -100,13 +100,13 @@ export default function Header() {
 
                 <div className="border-t border-zinc-100 my-1" />
 
-                <div className="px-4 py-1.5 text-[9px] text-zinc-450 font-medium tracking-wide">
+                {/* <div className="px-4 py-1.5 text-[9px] text-zinc-450 font-medium tracking-wide">
                   CONNECTION SECURITY
                   <div className="flex items-center gap-1.5 mt-0.5 text-zinc-800 font-mono text-[10px]">
                     <Shield className="w-3.5 h-3.5 text-zinc-400" />
                     <span>Mock-TLS Active (SSL)</span>
                   </div>
-                </div>
+                </div> */}
               </div>
             )}
           </div>

@@ -16,7 +16,8 @@ import {
   Bookmark,
   Share2,
   Trash2,
-  Plus
+  Plus,
+  ArrowUpRight
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -124,8 +125,8 @@ export default function LandingPage() {
       {/* Brand Navigation Header */}
       <header className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between border-b border-zinc-100 gap-2">
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-white font-bold text-sm font-sans">
-            N
+          <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-white shrink-0">
+            <ArrowUpRight className="w-5 h-5" />
           </div>
           <span className="font-bold tracking-tight text-zinc-900 text-sm sm:text-lg">
             NAVIGOO<span className="text-zinc-400 font-normal font-sans">.app</span>

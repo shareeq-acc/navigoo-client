@@ -863,13 +863,36 @@ export const segmentService = {
   },
 
   async deleteSegment(timelineId: string, unitNumber: number): Promise<void> {
-    await delay(150);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
+
+    if (token) {
+      try {
+        const response = await fetchWithAuth(`${API_URL}/api/segments/timeline/${timelineId}`);
+        const result = await response.json();
+        if (response.ok && result.success) {
+          const target = result.data.segments.find((s: any) => s.unitNumber === unitNumber);
+          if (target) {
+            const delRes = await fetchWithAuth(`${API_URL}/api/segments/${target.id}`, {
+              method: 'DELETE'
+            });
+            const delResult = await delRes.json();
+            if (!delRes.ok || !delResult.success) {
+              throw new Error(delResult.message || "Failed to delete segment from backend");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to delete segment from backend:", err);
+        throw err;
+      }
+    }
+
     const { timelines, segments } = getDB();
     const index = segments.findIndex(s => s.timelineId === timelineId && s.unitNumber === unitNumber);
     if (index > -1) {
       segments.splice(index, 1);
       
-      // Increment associated timeline's version
       const timelineIdx = timelines.findIndex(t => t.id === timelineId);
       if (timelineIdx > -1) {
         const currentVer = parseFloat(timelines[timelineIdx].version) || 1.0;
@@ -882,71 +905,181 @@ export const segmentService = {
   },
 
   async toggleSegmentComplete(segmentId: string): Promise<SegmentProps> {
-    await delay(100);
-    const { timelines, segments } = getDB();
-    const index = segments.findIndex(s => s.id === segmentId);
-    if (index === -1) {
-      throw new Error("Segment not found");
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
+
+    if (token) {
+      const response = await fetchWithAuth(`${API_URL}/api/segments/${segmentId}/complete`, {
+        method: 'PUT'
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to toggle segment completion");
+      }
+
+      const s = result.data;
+      const mappedSegment: SegmentProps = {
+        id: s.id,
+        timelineId: s.timelineId,
+        unitNumber: s.unitNumber,
+        title: s.title,
+        milestone: s.milestone,
+        isForkModified: s.isForkModified || false,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        goals: s.goals || [],
+        references: s.references || [],
+        schedule: s.scheduling ? {
+          id: `sch-${s.id}`,
+          segmentId: s.id,
+          scheduleDate: s.scheduling.scheduleDate,
+          completedAt: s.scheduling.completedAt
+        } : null
+      };
+
+      try {
+        const { timelines, segments } = getDB();
+        const existingIdx = segments.findIndex(x => x.id === mappedSegment.id);
+        if (existingIdx > -1) {
+          segments[existingIdx] = mappedSegment;
+        } else {
+          segments.push(mappedSegment);
+        }
+        
+        const timelineIdx = timelines.findIndex(t => t.id === mappedSegment.timelineId);
+        if (timelineIdx > -1) {
+          const currentVer = parseFloat(timelines[timelineIdx].version) || 1.0;
+          timelines[timelineIdx].version = (currentVer + 0.1).toFixed(1);
+          timelines[timelineIdx].updatedAt = new Date().toISOString();
+        }
+        
+        saveDB(timelines, segments);
+      } catch (e) {}
+
+      return mappedSegment;
+    } else {
+      await delay(100);
+      const { timelines, segments } = getDB();
+      const index = segments.findIndex(s => s.id === segmentId);
+      if (index === -1) {
+        throw new Error("Segment not found");
+      }
+
+      const currentSeg = segments[index];
+      const prevSchedule = currentSeg.schedule || { id: `sch-${segmentId}`, segmentId, scheduleDate: null, completedAt: null };
+      
+      const updatedSeg: SegmentProps = {
+        ...currentSeg,
+        schedule: {
+          ...prevSchedule,
+          completedAt: prevSchedule.completedAt ? null : new Date().toISOString()
+        },
+        updatedAt: new Date().toISOString()
+      };
+
+      segments[index] = updatedSeg;
+
+      const timelineIdx = timelines.findIndex(t => t.id === currentSeg.timelineId);
+      if (timelineIdx > -1) {
+        const currentVer = parseFloat(timelines[timelineIdx].version) || 1.0;
+        timelines[timelineIdx].version = (currentVer + 0.1).toFixed(1);
+        timelines[timelineIdx].updatedAt = new Date().toISOString();
+      }
+
+      saveDB(timelines, segments);
+      return updatedSeg;
     }
-
-    const currentSeg = segments[index];
-    const prevSchedule = currentSeg.schedule || { id: `sch-${segmentId}`, segmentId, scheduleDate: null, completedAt: null };
-    
-    const updatedSeg: SegmentProps = {
-      ...currentSeg,
-      schedule: {
-        ...prevSchedule,
-        completedAt: prevSchedule.completedAt ? null : new Date().toISOString()
-      },
-      updatedAt: new Date().toISOString()
-    };
-
-    segments[index] = updatedSeg;
-
-    // Increment associated timeline's version
-    const timelineIdx = timelines.findIndex(t => t.id === currentSeg.timelineId);
-    if (timelineIdx > -1) {
-      const currentVer = parseFloat(timelines[timelineIdx].version) || 1.0;
-      timelines[timelineIdx].version = (currentVer + 0.1).toFixed(1);
-      timelines[timelineIdx].updatedAt = new Date().toISOString();
-    }
-
-    saveDB(timelines, segments);
-    return updatedSeg;
   },
 
   async scheduleSegment(segmentId: string, scheduleDate: string | null): Promise<SegmentProps> {
-    await delay(100);
-    const { timelines, segments } = getDB();
-    const index = segments.findIndex(s => s.id === segmentId);
-    if (index === -1) {
-      throw new Error("Segment not found");
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem("timeline_app_token") : null;
+
+    if (token) {
+      const response = await fetchWithAuth(`${API_URL}/api/segments/${segmentId}/schedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ scheduleDate })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to schedule segment");
+      }
+
+      const s = result.data;
+      const mappedSegment: SegmentProps = {
+        id: s.id,
+        timelineId: s.timelineId,
+        unitNumber: s.unitNumber,
+        title: s.title,
+        milestone: s.milestone,
+        isForkModified: s.isForkModified || false,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        goals: s.goals || [],
+        references: s.references || [],
+        schedule: s.scheduling ? {
+          id: `sch-${s.id}`,
+          segmentId: s.id,
+          scheduleDate: s.scheduling.scheduleDate,
+          completedAt: s.scheduling.completedAt
+        } : null
+      };
+
+      try {
+        const { timelines, segments } = getDB();
+        const existingIdx = segments.findIndex(x => x.id === mappedSegment.id);
+        if (existingIdx > -1) {
+          segments[existingIdx] = mappedSegment;
+        } else {
+          segments.push(mappedSegment);
+        }
+        
+        const timelineIdx = timelines.findIndex(t => t.id === mappedSegment.timelineId);
+        if (timelineIdx > -1) {
+          const currentVer = parseFloat(timelines[timelineIdx].version) || 1.0;
+          timelines[timelineIdx].version = (currentVer + 0.1).toFixed(1);
+          timelines[timelineIdx].updatedAt = new Date().toISOString();
+        }
+        
+        saveDB(timelines, segments);
+      } catch (e) {}
+
+      return mappedSegment;
+    } else {
+      await delay(100);
+      const { timelines, segments } = getDB();
+      const index = segments.findIndex(s => s.id === segmentId);
+      if (index === -1) {
+        throw new Error("Segment not found");
+      }
+
+      const currentSeg = segments[index];
+      const prevSchedule = currentSeg.schedule || { id: `sch-${segmentId}`, segmentId, scheduleDate: null, completedAt: null };
+
+      const updatedSeg: SegmentProps = {
+        ...currentSeg,
+        schedule: {
+          ...prevSchedule,
+          scheduleDate
+        },
+        updatedAt: new Date().toISOString()
+      };
+
+      segments[index] = updatedSeg;
+
+      const timelineIdx = timelines.findIndex(t => t.id === currentSeg.timelineId);
+      if (timelineIdx > -1) {
+        const currentVer = parseFloat(timelines[timelineIdx].version) || 1.0;
+        timelines[timelineIdx].version = (currentVer + 0.1).toFixed(1);
+        timelines[timelineIdx].updatedAt = new Date().toISOString();
+      }
+
+      saveDB(timelines, segments);
+      return updatedSeg;
     }
-
-    const currentSeg = segments[index];
-    const prevSchedule = currentSeg.schedule || { id: `sch-${segmentId}`, segmentId, scheduleDate: null, completedAt: null };
-
-    const updatedSeg: SegmentProps = {
-      ...currentSeg,
-      schedule: {
-        ...prevSchedule,
-        scheduleDate
-      },
-      updatedAt: new Date().toISOString()
-    };
-
-    segments[index] = updatedSeg;
-
-    // Increment associated timeline's version
-    const timelineIdx = timelines.findIndex(t => t.id === currentSeg.timelineId);
-    if (timelineIdx > -1) {
-      const currentVer = parseFloat(timelines[timelineIdx].version) || 1.0;
-      timelines[timelineIdx].version = (currentVer + 0.1).toFixed(1);
-      timelines[timelineIdx].updatedAt = new Date().toISOString();
-    }
-
-    saveDB(timelines, segments);
-    return updatedSeg;
   },
 
   async generateWithAI(timelineId: string, prompt: string, duration: number, timeUnitId: 'daily' | 'weekly' | 'monthly'): Promise<{ segments: SegmentProps[]; message: string }> {

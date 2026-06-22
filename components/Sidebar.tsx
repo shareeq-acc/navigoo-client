@@ -8,6 +8,7 @@ import {
   Settings, 
   LogOut, 
   Layers,
+  ArrowUpRight,
 } from 'lucide-react';
 import { useTimelineStore } from '../hooks/TimelineContext';
 
@@ -57,8 +58,11 @@ export default function Sidebar() {
       {/* Brand & Navigation */}
       <div className="flex flex-col gap-6">
         {/* Brand Logotype */}
-        <div className="flex items-center gap-3 px-2 py-1">
-          <div className="text-xl font-bold tracking-tighter text-zinc-900 font-sans">
+        <div className="flex items-center gap-2.5 px-2 py-1">
+          <div className="w-7 h-7 rounded-lg bg-zinc-900 flex items-center justify-center text-white shrink-0">
+            <ArrowUpRight className="w-4 h-4" />
+          </div>
+          <div className="text-lg font-bold tracking-tighter text-zinc-900 font-sans">
             NAVIGOO<span className="text-zinc-400 font-light font-sans">.app</span>
           </div>
         </div>
