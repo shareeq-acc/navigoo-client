@@ -214,23 +214,128 @@ export const authService = {
     return this.login(email, password);
   },
 
-  async updateProfile(name: string, avatar?: string): Promise<SuccessResponse<UserProps>> {
-    await delay(200);
+  async updateProfile(name: string): Promise<SuccessResponse<UserProps>> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     const currentUser = await this.getCurrentUser();
     if (!currentUser) {
       throw new Error("No active session found");
     }
+
+    const response = await fetchWithAuth(`${API_URL}/api/users/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name }),
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to update profile");
+    }
+
+    const u = result.data;
     const updatedUser: UserProps = {
-      ...currentUser,
-      name,
-      avatar: avatar !== undefined ? avatar : currentUser.avatar
+      id: u.id,
+      username: u.username,
+      name: `${u.fname} ${u.lname}`,
+      email: currentUser.email,
+      avatar: u.avatar || `https://picsum.photos/seed/${u.username}/100/100`
     };
+
     if (typeof window !== 'undefined') {
       window.localStorage.setItem("timeline_app_user", JSON.stringify(updatedUser));
     }
+
     return {
       success: true,
       message: "Profile updated successfully",
+      data: updatedUser
+    };
+  },
+
+  async uploadProfilePicture(file: File): Promise<SuccessResponse<UserProps>> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const currentUser = await this.getCurrentUser();
+    if (!currentUser) {
+      throw new Error("No active session found");
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await fetchWithAuth(`${API_URL}/api/users/profile-picture`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to upload profile picture");
+    }
+
+    const u = result.data;
+    const updatedUser: UserProps = {
+      id: u.id,
+      username: u.username,
+      name: `${u.fname} ${u.lname}`,
+      email: currentUser.email,
+      avatar: u.avatar || `https://picsum.photos/seed/${u.username}/100/100`
+    };
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem("timeline_app_user", JSON.stringify(updatedUser));
+    }
+
+    return {
+      success: true,
+      message: "Profile picture uploaded successfully",
+      data: updatedUser
+    };
+  },
+
+  async getProfilePictures(): Promise<any[]> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const response = await fetchWithAuth(`${API_URL}/api/users/profile-pictures`);
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to fetch profile pictures history");
+    }
+    return result.data;
+  },
+
+  async selectProfilePicture(pictureId: string): Promise<SuccessResponse<UserProps>> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const currentUser = await this.getCurrentUser();
+    if (!currentUser) {
+      throw new Error("No active session found");
+    }
+
+    const response = await fetchWithAuth(`${API_URL}/api/users/profile-pictures/${pictureId}/select`, {
+      method: 'PUT',
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to select profile picture");
+    }
+
+    const u = result.data;
+    const updatedUser: UserProps = {
+      id: u.id,
+      username: u.username,
+      name: `${u.fname} ${u.lname}`,
+      email: currentUser.email,
+      avatar: u.avatar || `https://picsum.photos/seed/${u.username}/100/100`
+    };
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem("timeline_app_user", JSON.stringify(updatedUser));
+    }
+
+    return {
+      success: true,
+      message: "Profile picture selected successfully",
       data: updatedUser
     };
   },

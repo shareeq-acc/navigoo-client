@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, 
   Mail, 
@@ -12,48 +12,104 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { useTimelineStore } from '../hooks/TimelineContext';
+import { authService } from '../services/timelineService';
 import { motion } from 'motion/react';
 
 export default function AccountTab() {
-  const { currentUser, updateUserProfile, enableTransitions } = useTimelineStore();
+  const { currentUser, updateUserProfile, uploadProfilePicture, selectProfilePicture, enableTransitions } = useTimelineStore();
   const [profileName, setProfileName] = useState(currentUser?.name || "");
   const [dragActive, setDragActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
+  const [picturesHistory, setPicturesHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchHistory = async () => {
+    if (!currentUser) return;
+    try {
+      setIsLoadingHistory(true);
+      const list = await authService.getProfilePictures();
+      setPicturesHistory(list);
+    } catch (err) {
+      console.error("Failed to load picture history", err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  }, [currentUser?.avatar]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const handleUploadPreview = async () => {
+    if (!selectedFile) return;
+    try {
+      setIsSaving(true);
+      setFeedback(null);
+      await uploadProfilePicture(selectedFile);
+      setFeedback({ type: 'success', text: 'Avatar uploaded and updated successfully!' });
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: err.message || 'Failed to upload profile picture.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelPreview = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setFeedback(null);
+  };
+
+  const handleSelectHistoryPicture = async (pictureId: string) => {
+    try {
+      setIsSaving(true);
+      setFeedback(null);
+      await selectProfilePicture(pictureId);
+      setFeedback({ type: 'success', text: 'Avatar updated from history successfully!' });
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: err.message || 'Failed to select profile picture.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (!currentUser) return null;
 
-  // Handle image conversion to Base64
-  const processImageFile = (file: File) => {
+  const processImageFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setFeedback({ type: 'error', text: 'Unsupported format. Please select an image (JPG, PNG, WEBP).' });
       return;
     }
 
-    // Limit size to 2MB to keep in localStorage comfortably
+    // Limit size to 2MB
     if (file.size > 2 * 1024 * 1024) {
       setFeedback({ type: 'error', text: 'Image is too large. Choose an image under 2MB.' });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64Url = e.target?.result as string;
-      if (base64Url) {
-        try {
-          setIsSaving(true);
-          await updateUserProfile(profileName || currentUser.name, base64Url);
-          setFeedback({ type: 'success', text: 'Avatar updated successfully!' });
-        } catch (err: any) {
-          setFeedback({ type: 'error', text: err.message || 'Failed to sync picture changes.' });
-        } finally {
-          setIsSaving(false);
-        }
-      }
-    };
-    reader.readAsDataURL(file);
+    setSelectedFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    setFeedback(null);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,7 +224,7 @@ export default function AccountTab() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
-                src={currentUser.avatar || "https://picsum.photos/seed/totok/100/100"} 
+                src={previewUrl || currentUser.avatar || "https://picsum.photos/seed/totok/100/100"} 
                 alt={currentUser.username} 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -196,17 +252,75 @@ export default function AccountTab() {
               className="hidden"
             />
 
-            <button
-              type="button"
-              onClick={triggerFileSelect}
-              disabled={isSaving}
-              className="mt-4 px-3.5 py-1.5 border border-zinc-200 rounded-lg hover:bg-zinc-50 hover:text-zinc-950 text-[10px] font-bold uppercase tracking-wider font-mono text-zinc-600 cursor-pointer disabled:opacity-50"
-            >
-              Upload Photo
-            </button>
+            {selectedFile ? (
+              <div className="mt-4 flex gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={handleUploadPreview}
+                  disabled={isSaving}
+                  className="px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-850 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider font-mono cursor-pointer disabled:opacity-50"
+                >
+                  Save Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelPreview}
+                  disabled={isSaving}
+                  className="px-3.5 py-1.5 border border-zinc-250 hover:bg-zinc-55 hover:text-zinc-900 text-zinc-600 rounded-lg text-[10px] font-bold uppercase tracking-wider font-mono cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={triggerFileSelect}
+                disabled={isSaving}
+                className="mt-4 px-3.5 py-1.5 border border-zinc-200 rounded-lg hover:bg-zinc-50 hover:text-zinc-950 text-[10px] font-bold uppercase tracking-wider font-mono text-zinc-600 cursor-pointer disabled:opacity-50"
+              >
+                Upload Photo
+              </button>
+            )}
             <p className="text-[10px] text-zinc-400 mt-2.5 max-w-[180px] mx-auto leading-normal">
-              Supports PNG, JPG, or WEBP up to 2MB. Drag and drop file to upload.
+              {selectedFile ? "Click Save Photo to upload, or Cancel to discard." : "Supports PNG, JPG, or WEBP up to 2MB. Drag and drop file to upload."}
             </p>
+
+            {/* Pictures History Gallery */}
+            {picturesHistory.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-zinc-150 text-left">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest font-mono block mb-3">Upload History</span>
+                <div className="grid grid-cols-3 gap-2.5 max-h-48 overflow-y-auto pr-1">
+                  {picturesHistory.map((pic) => {
+                    const isActive = pic.url === currentUser.avatar;
+                    return (
+                      <div
+                        key={pic.id}
+                        onClick={() => !isActive && !isSaving && handleSelectHistoryPicture(pic.id)}
+                        className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border transition-all ${
+                          isActive
+                            ? 'border-zinc-900 ring-2 ring-zinc-900/10 scale-95'
+                            : 'border-zinc-200 hover:border-zinc-450 hover:scale-105'
+                        } ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={pic.url}
+                          alt="Uploaded avatar"
+                          className="w-full h-full object-cover"
+                        />
+                        {isActive && (
+                          <div className="absolute inset-0 bg-zinc-900/10 flex items-center justify-center">
+                            <div className="bg-zinc-900/80 rounded-full p-1 shadow-xs">
+                              <Check className="w-3.5 h-3.5 text-white" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Form Settings Details */}

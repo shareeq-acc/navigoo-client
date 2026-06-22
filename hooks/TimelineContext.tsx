@@ -19,7 +19,9 @@ interface TimelineContextType {
   // Tab Navigation State
   currentTab: 'dashboard' | 'explore' | 'settings' | 'account';
   setCurrentTab: (tab: 'dashboard' | 'explore' | 'settings' | 'account') => void;
-  updateUserProfile: (name: string, avatar?: string) => Promise<void>;
+  updateUserProfile: (name: string) => Promise<void>;
+  uploadProfilePicture: (file: File) => Promise<void>;
+  selectProfilePicture: (pictureId: string) => Promise<void>;
   
   // Look & Feel and AI Limit State
   accentColor: 'emerald' | 'slate' | 'indigo';
@@ -372,8 +374,24 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     await loadAllData();
   };
 
-  const handleUpdateUserProfile = async (name: string, avatar?: string) => {
-    const res = await authService.updateProfile(name, avatar);
+  const handleUpdateUserProfile = async (name: string) => {
+    const res = await authService.updateProfile(name);
+    if (res.success) {
+      setCurrentUser(res.data);
+      await loadAllData();
+    }
+  };
+
+  const handleUploadProfilePicture = async (file: File) => {
+    const res = await authService.uploadProfilePicture(file);
+    if (res.success) {
+      setCurrentUser(res.data);
+      await loadAllData();
+    }
+  };
+
+  const handleSelectProfilePicture = async (pictureId: string) => {
+    const res = await authService.selectProfilePicture(pictureId);
     if (res.success) {
       setCurrentUser(res.data);
       await loadAllData();
@@ -540,6 +558,8 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         currentTab,
         setCurrentTab,
         updateUserProfile: handleUpdateUserProfile,
+        uploadProfilePicture: handleUploadProfilePicture,
+        selectProfilePicture: handleSelectProfilePicture,
         login: handleLogin,
         register: handleRegister,
         logout: handleLogout,
