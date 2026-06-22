@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTimelineStore } from '../hooks/TimelineContext';
 import { 
   ArrowLeft, 
@@ -17,13 +18,10 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
-interface LoginPageProps {
-  initialMode?: 'login' | 'signup';
-  onBackToHome: () => void;
-  onLoginSuccess: () => void;
-}
-
-export default function LoginPage({ initialMode = 'login', onBackToHome, onLoginSuccess }: LoginPageProps) {
+export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialMode = (searchParams.get('mode') as 'login' | 'signup') || 'login';
   const { login, register } = useTimelineStore();
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   
@@ -46,74 +44,54 @@ export default function LoginPage({ initialMode = 'login', onBackToHome, onLogin
     setIsSubmitting(true);
     setErrorText("");
 
-    if (!email.trim() || !password.trim()) {
-      setErrorText("Please fill out all required credentials.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (mode === 'signup') {
-      if (!username.trim() || !fullName.trim() || !confirmPassword.trim()) {
-        setErrorText("Please fill out all fields.");
-        setIsSubmitting(false);
-        return;
-      }
-      if (password !== confirmPassword) {
-        setErrorText("Passwords do not match.");
-        setIsSubmitting(false);
-        return;
-      }
-      if (username.includes(" ")) {
-        setErrorText("Username handle cannot contain empty spaces.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Backend name and password validation alignment
-      const nameParts = fullName.trim().split(/\s+/);
-      const fname = nameParts[0] ? nameParts[0].replace(/[^a-zA-Z]/g, "") : "";
-      const lname = nameParts.slice(1).join(" ").replace(/[^a-zA-Z]/g, "") || "User";
-
-      if (!fname || fname.length < 2 || fname.length > 15 || !/^[a-zA-Z]+$/.test(fname)) {
-        setErrorText("First name must be between 2 and 15 alphabetic characters.");
-        setIsSubmitting(false);
-        return;
-      }
-      if (!lname || lname.length < 2 || lname.length > 15 || !/^[a-zA-Z]+$/.test(lname)) {
-        setErrorText("Last name must be between 2 and 15 alphabetic characters.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (password.length < 8 || !/[0-9]/.test(password) || !/[a-zA-Z]/.test(password)) {
-        setErrorText("Password must be at least 8 characters and contain both letters and numbers.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      try {
-        await register(username.toLowerCase().trim(), email.toLowerCase().trim(), password, fname, lname);
-        setSuccess(true);
-        setTimeout(() => {
-          onLoginSuccess();
-        }, 700);
-      } catch (err: any) {
-        setErrorText(err.message || "Could not register. Verify inputs.");
-      } finally {
-        setIsSubmitting(false);
-      }
-    } else {
-      try {
+    try {
+      if (mode === 'login') {
+        if (!email.trim() || !password.trim()) {
+          setErrorText("Please fill out all required credentials.");
+          return;
+        }
         await login(email.toLowerCase().trim(), password);
         setSuccess(true);
-        setTimeout(() => {
-          onLoginSuccess();
-        }, 700);
-      } catch (err: any) {
-        setErrorText(err.message || "Could not authenticate. Verify credentials.");
-      } finally {
-        setIsSubmitting(false);
+        setTimeout(() => router.push('/dashboard'), 700);
+      } else {
+        if (!username.trim() || !fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+          setErrorText("Please fill out all fields.");
+          return;
+        }
+        if (password !== confirmPassword) {
+          setErrorText("Passwords do not match.");
+          return;
+        }
+        if (username.includes(" ")) {
+          setErrorText("Username handle cannot contain empty spaces.");
+          return;
+        }
+
+        const nameParts = fullName.trim().split(/\s+/);
+        const fname = nameParts[0] ? nameParts[0].replace(/[^a-zA-Z]/g, "") : "";
+        const lname = nameParts.slice(1).join(" ").replace(/[^a-zA-Z]/g, "") || "User";
+
+        if (!fname || fname.length < 2 || fname.length > 15) {
+          setErrorText("First name must be between 2 and 15 alphabetic characters.");
+          return;
+        }
+        if (!lname || lname.length < 2 || lname.length > 15) {
+          setErrorText("Last name must be between 2 and 15 alphabetic characters.");
+          return;
+        }
+        if (password.length < 8 || !/[0-9]/.test(password) || !/[a-zA-Z]/.test(password)) {
+          setErrorText("Password must be at least 8 characters and contain both letters and numbers.");
+          return;
+        }
+
+        await register(username.toLowerCase().trim(), email.toLowerCase().trim(), password, fname, lname);
+        setSuccess(true);
+        setTimeout(() => router.push('/dashboard'), 700);
       }
+    } catch (err: any) {
+      setErrorText(err.message || "Operation failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -129,7 +107,7 @@ export default function LoginPage({ initialMode = 'login', onBackToHome, onLogin
         
         {/* Back navigation */}
         <button
-          onClick={onBackToHome}
+          onClick={() => router.push('/')}
           className="inline-flex items-center gap-1.5 text-zinc-500 hover:text-zinc-900 text-xs font-bold uppercase tracking-wider font-mono cursor-pointer mb-6"
         >
           <ArrowLeft className="w-3.5 h-3.5" />

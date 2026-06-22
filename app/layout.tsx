@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import './globals.css'; // Global styles
+import { TimelineProvider } from '../hooks/TimelineContext';
 
 export const metadata: Metadata = {
   title: 'Navigoo | Navigate & Achieve Goals',
@@ -9,7 +10,11 @@ export const metadata: Metadata = {
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en">
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <TimelineProvider>
+          {children}
+        </TimelineProvider>
+      </body>
     </html>
   );
 }

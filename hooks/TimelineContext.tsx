@@ -15,10 +15,7 @@ interface TimelineContextType {
   isLoading: boolean;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
-  
-  // Tab Navigation State
-  currentTab: 'dashboard' | 'explore' | 'settings' | 'account';
-  setCurrentTab: (tab: 'dashboard' | 'explore' | 'settings' | 'account') => void;
+
   updateUserProfile: (name: string) => Promise<void>;
   uploadProfilePicture: (file: File) => Promise<void>;
   selectProfilePicture: (pictureId: string) => Promise<void>;
@@ -40,7 +37,7 @@ interface TimelineContextType {
     ended: number;
     running: number;
     pending: number;
-    progressPercent: number; // calculated from completed segments
+    progressPercent: number;
   };
 
   // State actions
@@ -96,7 +93,6 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [activeTimelineId, setActiveTimelineId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'explore' | 'settings' | 'account'>('dashboard');
 
   // Look & feel + AI limit states - Synchronous Lazy Initializers
   const [accentColor, setAccentColor] = useState<'emerald' | 'slate' | 'indigo'>(() => {
@@ -333,7 +329,6 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     if (res.success) {
       setCurrentUser(res.data);
       
-      // Load user specifics directly on login
       const settingsKey = `timeline_look_and_feel_${res.data.email}`;
       const savedSettings = localStorage.getItem(settingsKey);
       if (savedSettings) {
@@ -380,9 +375,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     setEnableSound(false);
     setAiLimitCount(0);
     setActiveTimelineId(null);
-    setCurrentTab('dashboard');
     setTimelines([]);
-    // Reload explore items to guest state
     await loadAllData();
   };
 
@@ -596,8 +589,6 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         aiLimitMax,
         incrementAIConsumption,
         stats,
-        currentTab,
-        setCurrentTab,
         updateUserProfile: handleUpdateUserProfile,
         uploadProfilePicture: handleUploadProfilePicture,
         selectProfilePicture: handleSelectProfilePicture,

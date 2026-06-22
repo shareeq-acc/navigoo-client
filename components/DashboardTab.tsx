@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { useTimelineStore } from '../hooks/TimelineContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardTab() {
+  const router = useRouter();
   const { 
     timelines, 
     setActiveTimelineId, 
@@ -148,7 +150,7 @@ export default function DashboardTab() {
         setAiLevel("Beginner");
         setAiAudience("");
         setCreateModalOpen(false);
-        setActiveTimelineId(created.id);
+        router.push(`/dashboard/timeline/${created.id}`);
       } catch (err: any) {
         console.error("AI Generation failed:", err);
         setErrorMsg(err.message || "Failed to generate structured roadmap with AI. Please try again.");
@@ -171,7 +173,7 @@ export default function DashboardTab() {
       setNewTitle("");
       setNewDesc("");
       setCreateModalOpen(false);
-      setActiveTimelineId(created.id);
+      router.push(`/dashboard/timeline/${created.id}`);
     }
   };
 
@@ -565,7 +567,7 @@ export default function DashboardTab() {
               return (
                 <div 
                   key={timeline.id}
-                  onClick={() => setActiveTimelineId(timeline.id)}
+                  onClick={() => router.push(`/dashboard/timeline/${timeline.id}`)}
                   className={`group border border-zinc-200 p-5 rounded-xl hover:shadow-xs transition-all cursor-pointer relative bg-zinc-50/20 w-[275px] xs:w-[315px] sm:w-[340px] min-w-[275px] xs:min-w-[315px] sm:min-w-[340px] snap-start shrink-0 flex flex-col justify-between h-[210px] hover:${activeTheme.borderColor} ${
                     isLastOfPage ? 'ring-2 ring-indigo-500/15' : ''
                   }`}

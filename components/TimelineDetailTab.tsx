@@ -26,6 +26,7 @@ import {
 import { useTimelineStore } from '../hooks/TimelineContext';
 import { SegmentProps, SegmentGoalProps, SegmentReferenceProps } from '../types/timeline';
 import { motion, AnimatePresence } from 'motion/react';
+import { useRouter } from 'next/navigation';
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "";
@@ -45,6 +46,7 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function TimelineDetailTab() {
+  const router = useRouter();
   const { 
     activeTimeline, 
     setActiveTimelineId, 
@@ -288,7 +290,7 @@ export default function TimelineDetailTab() {
         {/* Back Link & Header */}
         <div className="flex items-center gap-3 mb-4">
           <button
-            onClick={() => setActiveTimelineId(null)}
+            onClick={() => router.push('/dashboard')}
             className="p-2 border border-zinc-200 hover:bg-zinc-100 text-zinc-500 hover:text-zinc-805 rounded-lg transition-all cursor-pointer bg-white shadow-xs"
           >
             <ArrowLeft className="w-4 h-4" />

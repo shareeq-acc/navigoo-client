@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Mail, Bell, Shield, User, LogOut, Check, Sliders } from 'lucide-react';
+import { Search, Bell, Shield, User, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useTimelineStore } from '../hooks/TimelineContext';
 
 export default function Header() {
-  const { currentUser, searchQuery, setSearchQuery, logout, setCurrentTab, setActiveTimelineId } = useTimelineStore();
+  const { currentUser, searchQuery, setSearchQuery, logout } = useTimelineStore();
+  const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
@@ -76,8 +78,7 @@ export default function Header() {
                 </div>                <button
                   onClick={() => {
                     setDropdownOpen(false);
-                    setCurrentTab('account');
-                    setActiveTimelineId(null);
+                    router.push('/user/account');
                   }}
                   className="w-full text-left px-4 py-2 text-xs font-semibold text-zinc-650 hover:bg-zinc-50 hover:text-zinc-950 flex items-center gap-2.5 transition-colors cursor-pointer"
                 >
@@ -89,6 +90,7 @@ export default function Header() {
                   onClick={async () => {
                     setDropdownOpen(false);
                     await logout();
+                    router.push('/');
                   }}
                   className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                 >

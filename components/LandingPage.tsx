@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTimelineStore } from '../hooks/TimelineContext';
-import { 
-  Sparkles, 
-  Layers, 
-  Clock, 
-  ArrowRight, 
-  CheckCircle2, 
-  ShieldCheck, 
+import {
+  Sparkles,
+  Layers,
+  Clock,
+  ArrowRight,
+  CheckCircle2,
+  ShieldCheck,
   Compass,
   ArrowRightLeft,
   ListTodo,
@@ -18,12 +19,8 @@ import {
   Plus
 } from 'lucide-react';
 
-interface LandingPageProps {
-  onEnterApp: () => void;
-  onEnterAuth: (mode?: 'login' | 'signup') => void;
-}
-
-export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProps) {
+export default function LandingPage() {
+  const router = useRouter();
   const { currentUser } = useTimelineStore();
 
   // Web Audio retro mechanical click synthesizer
@@ -123,7 +120,7 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
 
   return (
     <div id="landing-page" className="w-full min-h-screen bg-[#FDFDFD] text-zinc-900 overflow-x-hidden font-sans select-none">
-      
+
       {/* Brand Navigation Header */}
       <header className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between border-b border-zinc-100 gap-2">
         <div className="flex items-center gap-2 shrink-0">
@@ -142,7 +139,7 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
                 Logged as <strong className="text-zinc-800 font-semibold">@{currentUser.username}</strong>
               </span>
               <button
-                onClick={onEnterApp}
+                onClick={() => router.push('/dashboard')}
                 className="bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-[10px] sm:text-xs uppercase tracking-wider px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg transition-all flex items-center gap-1 sm:gap-1.5 active:scale-98 cursor-pointer shadow-sm"
               >
                 <span>Dashboard</span>
@@ -152,13 +149,13 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
           ) : (
             <>
               <button
-                onClick={() => onEnterAuth('login')}
+                onClick={() => router.push('/login?mode=login')}
                 className="text-[10px] sm:text-xs font-bold text-zinc-500 hover:text-zinc-900 cursor-pointer px-2 sm:px-3 py-1.5 sm:py-2 uppercase tracking-wider shrink-0 font-medium"
               >
                 Sign In
               </button>
               <button
-                onClick={() => onEnterAuth('signup')}
+                onClick={() => router.push('/login?mode=signup')}
                 className="bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-[10px] sm:text-xs uppercase tracking-wider px-3 sm:px-4.5 py-2 sm:py-2.5 rounded-lg transition-all active:scale-98 cursor-pointer shadow-xs shrink-0"
               >
                 Get Started
@@ -171,17 +168,17 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
       {/* Hero Visual Section */}
       <section className="max-w-5xl mx-auto px-6 pt-16 sm:pt-24 pb-16 text-center flex flex-col items-center">
         {/* Badge status */}
-        <div className="inline-flex items-center gap-1.5 bg-zinc-100/80 border border-zinc-200/50 rounded-full px-3.5 py-1.5 mb-8 animate-fade-in">
+        {/* <div className="inline-flex items-center gap-1.5 bg-zinc-100/80 border border-zinc-200/50 rounded-full px-3.5 py-1.5 mb-8 animate-fade-in">
           <Sparkles className="w-3 h-3 text-zinc-700 animate-pulse" />
           <span className="text-[10px] font-mono tracking-wider font-extrabold uppercase text-zinc-700">
             Visual Timeline Planner & Organizer
           </span>
-        </div>
+        </div> */}
 
         <h1 className="text-4xl sm:text-6xl font-serif italic font-semibold text-zinc-900 tracking-tight leading-[1.1] max-w-4xl mb-6">
           Curate beautiful learning paths. <br className="hidden sm:inline" />Track milestones, accomplish goals.
         </h1>
-        
+
         <p className="text-zinc-500 text-sm sm:text-base max-w-2xl leading-relaxed mb-10 font-medium">
           A minimalist planner to design custom paths, track milestones, and keep your schedules simple. Use built-in AI generators to draft learning syllabi and steps instantly.
         </p>
@@ -189,7 +186,7 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-center w-full sm:w-auto">
           {currentUser ? (
             <button
-              onClick={onEnterApp}
+              onClick={() => router.push('/dashboard')}
               className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-850 text-white font-bold text-xs uppercase tracking-widest px-8 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-98 cursor-pointer"
             >
               <span>Enter Workspace</span>
@@ -198,14 +195,14 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
           ) : (
             <>
               <button
-                onClick={() => onEnterAuth('signup')}
+                onClick={() => router.push('/login?mode=signup')}
                 className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-850 text-white font-bold text-xs uppercase tracking-widest px-8 py-4 rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-98 cursor-pointer"
               >
                 <span>Start Visualizing For Free</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
-                onClick={() => onEnterAuth('login')}
+                onClick={() => router.push('/login?mode=login')}
                 className="w-full sm:w-auto border border-zinc-250 hover:bg-zinc-50 text-zinc-700 font-bold text-xs uppercase tracking-widest px-8 py-4 rounded-xl transition-all cursor-pointer bg-white"
               >
                 Login to Profile
@@ -219,7 +216,7 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
       <section className="max-w-6xl mx-auto px-6 mb-24">
         <div className="bg-white border border-zinc-200 rounded-3xl p-4 sm:p-6 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 inset-x-0 h-1.5 bg-zinc-900" />
-          
+
           {/* Responsive Header Address Bar */}
           <div className="flex flex-col sm:flex-row items-center justify-between border-b border-zinc-100 pb-4 mb-6 gap-3 sm:gap-2">
             <div className="flex items-center gap-1.5 shrink-0">
@@ -288,7 +285,7 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
       {/* Structured Core Pillars - Now with Premium Design */}
       <section className="bg-zinc-50/50 border-y border-zinc-100 py-20 px-6">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-          
+
           <div className="group bg-white border border-zinc-150 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-zinc-300 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-zinc-200 group-hover:bg-zinc-900 transition-all duration-300" />
             <div className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-250 flex items-center justify-center text-zinc-900 mb-4 group-hover:scale-110 transition-transform">
@@ -351,15 +348,13 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
                     setActiveStepIndex(idx);
                     playToggleSound();
                   }}
-                  className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 relative outline-none cursor-pointer flex gap-4 items-start ${
-                    worksActive
-                      ? 'bg-zinc-900 text-white border-zinc-900 shadow-lg translate-x-1'
-                      : 'bg-white text-zinc-900 border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50/50'
-                  }`}
+                  className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 relative outline-none cursor-pointer flex gap-4 items-start ${worksActive
+                    ? 'bg-zinc-900 text-white border-zinc-900 shadow-lg translate-x-1'
+                    : 'bg-white text-zinc-900 border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50/50'
+                    }`}
                 >
-                  <div className={`px-2 py-0.5 rounded font-mono text-[9px] font-extrabold uppercase tracking-wider shrink-0 ${
-                    worksActive ? 'bg-zinc-800 text-zinc-100' : 'bg-zinc-100 text-zinc-500'
-                  }`}>
+                  <div className={`px-2 py-0.5 rounded font-mono text-[9px] font-extrabold uppercase tracking-wider shrink-0 ${worksActive ? 'bg-zinc-800 text-zinc-100' : 'bg-zinc-100 text-zinc-500'
+                    }`}>
                     {step.badge}
                   </div>
                   <div>
@@ -391,18 +386,18 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
                     Step 01 / Setup Goal
                   </div>
                   <h4 className="text-sm font-serif italic font-bold text-zinc-900">Name Your Learning Goal</h4>
-                  
+
                   <div className="space-y-3">
                     <div>
                       <label className="block text-[9px] font-bold uppercase text-zinc-400 font-mono mb-1">Timeline Title</label>
-                      <input 
-                        type="text" 
-                        readOnly 
-                        value="Python Programming for Beginners" 
+                      <input
+                        type="text"
+                        readOnly
+                        value="Python Programming for Beginners"
                         className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-zinc-800 font-medium focus:outline-none font-sans"
                       />
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <div className="bg-zinc-900 text-white rounded-lg px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider font-semibold flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-zinc-300" />
@@ -423,7 +418,7 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
                     <Sparkles className="w-3.5 h-3.5 text-zinc-400" /> Step 02 / AI Generation
                   </div>
                   <h4 className="text-sm font-serif italic font-bold text-zinc-900">Generate Your Course Milestones</h4>
-                  
+
                   <div className="border border-zinc-150 rounded-xl bg-zinc-50/50 p-3 space-y-2 text-left">
                     <div className="flex items-center justify-between text-[8px] font-mono text-zinc-400 border-b border-zinc-100/60 pb-1.5">
                       <span>AUTOMATED ROADMAP DRAFT</span>
@@ -452,7 +447,7 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
                     Step 03 / Edit & Customize
                   </div>
                   <h4 className="text-sm font-serif italic font-bold text-zinc-900">Add Notes and Link Resources</h4>
-                  
+
                   <div className="border border-zinc-200 rounded-xl p-4 bg-zinc-50/20 space-y-3">
                     <div className="text-[11px] font-serif italic text-zinc-850 font-bold border-b border-zinc-150 pb-1.5 flex items-center gap-2">
                       <Bookmark className="w-3.5 h-3.5 text-zinc-700" />
@@ -481,13 +476,13 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
                     Step 04 / Track Progress
                   </div>
                   <h4 className="text-sm font-serif italic font-bold text-zinc-900">Check Milestones and Accomplish Goals</h4>
-                  
+
                   <div className="bg-zinc-50/50 border border-zinc-150 rounded-xl p-4 space-y-3">
                     <div className="flex justify-between items-center text-[10px] font-mono font-semibold">
                       <span className="text-zinc-500">ROADMAP PROGRESS</span>
                       <span className="text-[#0e623f] font-bold">66% COMPLETED</span>
                     </div>
-                    
+
                     {/* Progress bar simulation */}
                     <div className="w-full bg-zinc-200 h-1.5 rounded-full overflow-hidden">
                       <div className="bg-[#0e623f] h-full rounded-full transition-all duration-700" style={{ width: '66%' }} />
@@ -530,7 +525,7 @@ export default function LandingPage({ onEnterApp, onEnterAuth }: LandingPageProp
           Create, fork, and manage beautiful timelines right in your browser.
         </p>
         <button
-          onClick={currentUser ? onEnterApp : () => onEnterAuth('signup')}
+          onClick={currentUser ? () => router.push('/dashboard') : () => router.push('/login?mode=signup')}
           className="bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs uppercase tracking-widest px-8 py-4 rounded-xl shadow-lg transition-all active:scale-98 cursor-pointer"
         >
           {currentUser ? 'Enter App Workspace' : 'Create Free Account'}

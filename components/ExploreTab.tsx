@@ -14,8 +14,10 @@ import {
 import { useTimelineStore } from '../hooks/TimelineContext';
 import { timelineService } from '../services/timelineService';
 import { TimelineProps } from '../types/timeline';
+import { useRouter } from 'next/navigation';
 
 export default function ExploreTab() {
+  const router = useRouter();
   const { forkTimeline, currentUser, setActiveTimelineId } = useTimelineStore();
   const [publicTimelines, setPublicTimelines] = useState<TimelineProps[]>([]);
   const [search, setSearch] = useState("");
@@ -139,7 +141,7 @@ export default function ExploreTab() {
           {paginatedPublicTimelines.map((timeline) => (
             <div
               key={timeline.id}
-              onClick={() => setActiveTimelineId(timeline.id)}
+              onClick={() => router.push(`/dashboard/timeline/${timeline.id}`)}
               className="group border border-zinc-200 p-5 rounded-xl hover:border-zinc-900 hover:shadow-xs transition-all cursor-pointer relative bg-zinc-50/20 flex flex-col justify-between"
             >
               <div>
