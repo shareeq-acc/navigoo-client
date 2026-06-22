@@ -18,14 +18,19 @@ const DEFAULT_USER: UserProps = {
 };
 
 let isRefreshing = false;
-let refreshSubscribers: ((token: string) => void)[] = [];
+let refreshSubscribers: { resolve: (token: string) => void; reject: (err: any) => void }[] = [];
 
-function subscribeTokenRefresh(cb: (token: string) => void) {
-  refreshSubscribers.push(cb);
+function subscribeTokenRefresh(resolve: (token: string) => void, reject: (err: any) => void) {
+  refreshSubscribers.push({ resolve, reject });
 }
 
 function onRefreshed(token: string) {
-  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers.forEach((sub) => sub.resolve(token));
+  refreshSubscribers = [];
+}
+
+function onRefreshFailed(err: any) {
+  refreshSubscribers.forEach((sub) => sub.reject(err));
   refreshSubscribers = [];
 }
 
@@ -63,31 +68,45 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
           }
           isRefreshing = false;
           onRefreshed(newToken);
+          
+          // Retry the initiating request immediately
+          const retryHeaders = new Headers(config.headers || {});
+          retryHeaders.set('Authorization', `Bearer ${newToken}`);
+          return fetch(url, { ...config, headers: retryHeaders });
         } else {
           isRefreshing = false;
+          const sessionErr = new Error("Session expired");
+          onRefreshFailed(sessionErr);
           if (typeof window !== 'undefined') {
             window.localStorage.removeItem("timeline_app_token");
             window.localStorage.removeItem("timeline_app_user");
           }
-          throw new Error("Session expired");
+          throw sessionErr;
         }
       } catch (err) {
         isRefreshing = false;
+        onRefreshFailed(err);
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem("timeline_app_token");
           window.localStorage.removeItem("timeline_app_user");
         }
         throw err;
       }
-    }
-
-    return new Promise<Response>((resolve, reject) => {
-      subscribeTokenRefresh((newToken) => {
-        const newHeaders = new Headers(config.headers || {});
-        newHeaders.set('Authorization', `Bearer ${newToken}`);
-        resolve(fetch(url, { ...config, headers: newHeaders }));
+    } else {
+      // Concurrent requests wait for active refresh
+      return new Promise<Response>((resolve, reject) => {
+        subscribeTokenRefresh(
+          (newToken) => {
+            const newHeaders = new Headers(config.headers || {});
+            newHeaders.set('Authorization', `Bearer ${newToken}`);
+            resolve(fetch(url, { ...config, headers: newHeaders }));
+          },
+          (err) => {
+            reject(err);
+          }
+        );
       });
-    });
+    }
   }
 
   return response;
@@ -465,67 +484,42 @@ export const timelineService = {
   },
 
   async forkTimeline(timelineId: string): Promise<TimelineProps> {
-    await delay(400);
-    const { timelines, segments } = getDB();
-    const sourceTimeline = timelines.find(t => t.id === timelineId);
-    if (!sourceTimeline) {
-      throw new Error("Source timeline not found");
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const response = await fetchWithAuth(`${API_URL}/api/timelines/fork/${timelineId}`, {
+      method: 'POST'
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to fork timeline");
     }
 
-    const currentUser = await authService.getCurrentUser() || DEFAULT_USER;
-    const forkedId = `tl-forked-${Math.random().toString(36).substr(2, 6)}`;
-
-    const forkedTimeline: TimelineProps = {
-      ...sourceTimeline,
-      id: forkedId,
-      title: `${sourceTimeline.title} (Forked)`,
-      description: `Forked from @${sourceTimeline.author.username}. ${sourceTimeline.description}`,
+    const t = result.data;
+    const mappedTimeline: TimelineProps = {
+      id: t.id,
+      typeId: t.type.type === 'ROADMAP' ? 'with_time_unit' : 'without_time_unit',
+      timeUnitId: t.timeUnit ? (t.timeUnit.code.toLowerCase() === 'week' ? 'weekly' : t.timeUnit.code.toLowerCase() as any) : undefined,
+      duration: t.duration || 5,
+      title: t.title,
+      description: t.description,
       author: {
-        id: currentUser.id,
-        username: currentUser.username
+        id: t.author.id,
+        username: t.author.username
       },
-      version: "1.0",
-      isPublic: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      isGenerated: t.isGenerated,
+      isPublic: t.isPublic,
+      enableScheduling: t.enableScheduling,
+      version: t.version,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt
     };
 
-    // Duplicate segments
-    const sourceSegments = segments.filter(s => s.timelineId === timelineId);
-    const duplicatedSegments = sourceSegments.map(sourceSeg => {
-      const segId = `seg-forked-${forkedId}-${sourceSeg.unitNumber}-${Math.random().toString(36).substr(2, 4)}`;
-      return {
-        ...sourceSeg,
-        id: segId,
-        timelineId: forkedId,
-        isForkModified: true,
-        goals: sourceSeg.goals.map((g, idx) => ({
-          id: `g-forked-${segId}-${idx}`,
-          segmentId: segId,
-          goal: g.goal
-        })),
-        references: sourceSeg.references.map((r, idx) => ({
-          id: `r-forked-${segId}-${idx}`,
-          segmentId: segId,
-          reference: r.reference
-        })),
-        schedule: sourceSeg.schedule ? {
-          ...sourceSeg.schedule,
-          id: `sch-forked-${segId}`,
-          segmentId: segId,
-          completedAt: null // reset completions on fork
-        } : {
-          id: `sch-forked-${segId}`,
-          segmentId: segId,
-          scheduleDate: null,
-          completedAt: null
-        }
-      };
-    });
+    try {
+      const { timelines, segments } = getDB();
+      timelines.unshift(mappedTimeline);
+      saveDB(timelines, segments);
+    } catch (e) {}
 
-    timelines.unshift(forkedTimeline);
-    saveDB(timelines, [...segments, ...duplicatedSegments]);
-    return forkedTimeline;
+    return mappedTimeline;
   }
 };
 

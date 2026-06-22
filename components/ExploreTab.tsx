@@ -194,7 +194,7 @@ export default function ExploreTab() {
                     className="bg-zinc-900 hover:bg-zinc-850 text-white text-[10px] h-8 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50 font-mono font-bold uppercase tracking-wide group-hover:scale-[1.02] active:scale-95 cursor-pointer shadow-xs"
                   >
                     <GitFork className="w-3.5 h-3.5" />
-                    <span>{forkingId === timeline.id ? "Forking..." : "Fork Guide"}</span>
+                    <span>{forkingId === timeline.id ? "Forking..." : "Fork"}</span>
                   </button>
                 </div>
               </div>
