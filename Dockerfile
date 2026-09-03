@@ -18,6 +18,14 @@ COPY . .
 # Disable Next.js telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Where the browser sends API calls. This has to be a build argument: Next
+# replaces every NEXT_PUBLIC_* with a literal string when it compiles, baking
+# it into the JavaScript the browser downloads. Setting it in compose does
+# nothing, and the failure is silent — the app falls back to localhost:8000 and
+# every request from a real visitor's browser dies with nothing in any log.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 RUN npm run build
 
 # Production image, copy all the files and run next
